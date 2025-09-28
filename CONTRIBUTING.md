@@ -31,57 +31,67 @@ This project adheres to a code of conduct. By participating, you are expected to
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/rosettascript/pern-setup.git
-   cd pern-setup
+   git clone https://github.com/rosettascript/pern-stack-setup-tool.git
+   cd pern-stack-setup-tool
    ```
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/rosettascript/pern-setup.git
+   git remote add upstream https://github.com/rosettascript/pern-stack-setup-tool.git
    ```
 
 ## Development Setup
 
 ### Local Development
 
-1. **Install dependencies** (if any):
+1. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. **Make scripts executable**:
+2. **Start the setup tool**:
    ```bash
-   chmod +x run.sh
-   chmod +x lib/*.sh
+   npm start
    ```
 
-3. **Test the setup script**:
+3. **Run tests**:
    ```bash
-   ./run.sh --check
+   npm test
    ```
 
-4. **Run validation**:
+4. **Run security scan**:
    ```bash
-   bash lib/validator.sh
+   npm run security:scan
    ```
 
 ### Testing Your Changes
 
-1. **Test with different templates**:
+1. **Test the setup tool**:
    ```bash
-   # Test starter template
-   ./run.sh --quick-setup
-   # Choose starter template and test the generated project
+   # Run comprehensive tests
+   npm run test:all
    
-   # Test API-only template
-   ./run.sh --custom-setup
-   # Choose API-only template and test the generated project
+   # Test specific components
+   npm run test:unit
+   npm run test:integration
+   npm run test:e2e
    ```
 
-2. **Validate generated projects**:
+2. **Test security and compliance**:
+   ```bash
+   # Run security scans
+   npm run test:security
+   npm run test:compliance
+   
+   # Test performance
+   npm run test:performance
+   ```
+
+3. **Validate generated projects**:
    - Check that all dependencies install correctly
    - Verify that development servers start
    - Test database connections
    - Validate security configurations
+   - Test compliance frameworks
 
 ## Contributing Process
 
@@ -105,15 +115,20 @@ git checkout -b docs/update-readme
 ### 3. Test Your Changes
 
 ```bash
-# Test the setup script
-./run.sh --check
+# Test the setup tool
+npm test
 
-# Test generated templates
-./run.sh --quick-setup
-# Test the generated project structure and functionality
+# Test specific components
+npm run test:unit
+npm run test:integration
+npm run test:e2e
 
-# Run validation
-bash lib/validator.sh
+# Test security and compliance
+npm run test:security
+npm run test:compliance
+
+# Test performance
+npm run test:performance
 ```
 
 ### 4. Commit Your Changes
@@ -143,32 +158,37 @@ Then create a pull request on GitHub with:
 
 ## Coding Standards
 
-### Shell Scripts
+### JavaScript/Node.js
 
-- Use `#!/bin/bash` shebang
-- Follow [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
-- Use meaningful variable names
-- Add comments for complex logic
-- Use `set -e` for error handling
-- Quote variables: `"$VARIABLE"`
-- Use `local` for function variables
+- Use ES6+ features and modern JavaScript
+- Follow [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
+- Use meaningful variable and function names
+- Add JSDoc comments for functions and classes
+- Use async/await for asynchronous operations
+- Implement proper error handling with try/catch
+- Use const/let instead of var
 
 Example:
-```bash
-#!/bin/bash
-
-# Function to create project directory
-create_project_directory() {
-    local project_path="$1"
-    local project_name="$2"
-    
-    if [[ -d "$project_path" ]]; then
-        log_error "Directory $project_path already exists"
-        return 1
-    fi
-    
-    mkdir -p "$project_path"
-    log_success "Created project directory: $project_path"
+```javascript
+/**
+ * Creates a new project directory with proper structure
+ * @param {string} projectPath - The path where the project will be created
+ * @param {string} projectName - The name of the project
+ * @returns {Promise<boolean>} - Returns true if successful
+ */
+async function createProjectDirectory(projectPath, projectName) {
+    try {
+        if (fs.existsSync(projectPath)) {
+            throw new Error(`Directory ${projectPath} already exists`);
+        }
+        
+        await fs.promises.mkdir(projectPath, { recursive: true });
+        logger.success(`Created project directory: ${projectPath}`);
+        return true;
+    } catch (error) {
+        logger.error(`Failed to create project directory: ${error.message}`);
+        return false;
+    }
 }
 ```
 
@@ -188,61 +208,65 @@ create_project_directory() {
 
 ## Testing Guidelines
 
-### Template Testing
+### Component Testing
 
-Each template should be tested for:
+Each component should be tested for:
 
-1. **Structure validation**:
-   - Correct folder structure
-   - All required files present
-   - Proper file permissions
+1. **Unit Testing**:
+   - Individual functions and methods
+   - Input validation and error handling
+   - Return values and side effects
+   - Edge cases and boundary conditions
 
-2. **Dependency installation**:
-   - All packages install without errors
-   - No security vulnerabilities
-   - Compatible versions
+2. **Integration Testing**:
+   - Component interactions
+   - Database connections
+   - External service integrations
+   - API endpoints and responses
 
-3. **Functionality testing**:
-   - Development servers start correctly
-   - Database connections work
-   - Authentication flows function
-   - API endpoints respond
+3. **Security Testing**:
+   - Vulnerability scanning
+   - Compliance framework validation
+   - Authentication and authorization
+   - Data protection and encryption
 
-4. **Cross-platform compatibility**:
-   - Works on Linux, macOS, and Windows (WSL)
-   - Handles different shell environments
-   - Proper path handling
+4. **Performance Testing**:
+   - Load testing and stress testing
+   - Memory usage and optimization
+   - Response times and throughput
+   - Caching effectiveness
 
 ### Test Checklist
 
-- [ ] All templates generate without errors
-- [ ] Generated projects start successfully
-- [ ] Database connections work
-- [ ] Security features are properly configured
-- [ ] Development tools function correctly
-- [ ] Docker containers build and run
-- [ ] Tests pass in generated projects
+- [ ] All unit tests pass
+- [ ] Integration tests complete successfully
+- [ ] Security scans show no vulnerabilities
+- [ ] Compliance frameworks validate correctly
+- [ ] Performance benchmarks are met
+- [ ] Cross-platform compatibility verified
+- [ ] Documentation is updated
 
 ## Documentation
 
 ### Required Documentation Updates
 
-When adding new features or templates:
+When adding new features or components:
 
 1. **Update README.md**:
    - Add feature to the features list
    - Update usage examples
-   - Add new template descriptions
+   - Add new component descriptions
+   - Update installation instructions
 
-2. **Update docs/ folder**:
-   - Add template-specific documentation
-   - Update troubleshooting guide
-   - Add new configuration options
-
-3. **Update project.json**:
+2. **Update package.json**:
    - Increment version appropriately
-   - Add new features to features list
-   - Update changelog
+   - Add new dependencies if needed
+   - Update scripts and commands
+
+3. **Update CHANGELOG.md**:
+   - Add new features and improvements
+   - Document breaking changes
+   - Include bug fixes and security updates
 
 ### Documentation Standards
 
@@ -267,27 +291,27 @@ We follow [Semantic Versioning](https://semver.org/):
 - [ ] Documentation is updated
 - [ ] Changelog is updated
 - [ ] Version numbers are incremented
-- [ ] Project.json is updated
+- [ ] package.json is updated
 - [ ] Release notes are prepared
 
 ### Creating a Release
 
 1. Update version numbers in:
-   - `project.json`
+   - `package.json`
    - `README.md` (if needed)
-   - `docs/CHANGELOG.md`
+   - `CHANGELOG.md`
 
 2. Create a release branch:
    ```bash
-   git checkout -b release/v3.0.0
-   git push origin release/v3.0.0
+   git checkout -b release/v1.0.0
+   git push origin release/v1.0.0
    ```
 
 3. Create a pull request for the release
 4. After approval, merge and tag:
    ```bash
-   git tag v3.0.0
-   git push origin v3.0.0
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 
 ## Getting Help
