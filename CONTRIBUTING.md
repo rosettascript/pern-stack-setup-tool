@@ -274,6 +274,8 @@ When adding new features or components:
 - Include practical examples
 - Provide troubleshooting information
 - Keep documentation up-to-date with code changes
+- All documentation is organized in the `docs/` folder
+- Update the `docs/README.md` for navigation changes
 
 ## Release Process
 
