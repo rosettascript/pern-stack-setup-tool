@@ -92,11 +92,13 @@ npm start
 
 # 2. Select components in order:
 # 1. PostgreSQL → 2. Setup PostgreSQL → 1. Automatic setup
-# 2. Docker → 2. Setup Docker → 1. Automatic setup
-# 3. Folder Structure → 1. Create Project → Full-stack (PERN)
-# 4. Configuration → 1. Environment Variables → 1. Development
-# 5. End → 4. Exit
+# 3. Docker → 2. Setup Docker → 1. Automatic setup
+# 4. Folder Structure → 1. Create Project → Full-stack (PERN)
+# 8. Configuration → 1. Environment Variables → 1. Development
+# 10. End → 4. Exit
 ```
+
+**Note**: The menu includes additional options (Redis, PM2, Nginx, Tests, Advanced Features) that are not part of the basic setup flow. Redis, PM2, and Nginx are Linux/macOS only.
 
 ## 📋 Implementation Checklist
 
@@ -157,9 +159,9 @@ npm start
 npm start
 # Follow prompts:
 # 1. PostgreSQL → Setup → Automatic
-# 2. Docker → Setup → Automatic
-# 3. Folder Structure → Create Project → Full-stack
-# 4. Configuration → Environment Variables
+# 3. Docker → Setup → Automatic
+# 4. Folder Structure → Create Project → Full-stack
+# 8. Configuration → Environment Variables
 ```
 
 ### Advanced Setup with Security
@@ -167,12 +169,12 @@ npm start
 npm start
 # Follow prompts:
 # 1. PostgreSQL → Setup → Automatic
-# 2. Docker → Setup → Automatic
-# 3. Folder Structure → Create Project → Microservices
-# 4. Configuration → Authentication → Multi-role
-# 5. Configuration → Security Settings → All options
-# 6. Advanced Features → Security Scanning → Scan setup
-# 7. Advanced Features → Compliance Setup → SOC 2
+# 3. Docker → Setup → Automatic
+# 4. Folder Structure → Create Project → Microservices
+# 8. Configuration → Authentication → Multi-role
+# 8. Configuration → Security Settings → All options
+# 9. Advanced Features → Security Scanning → Scan setup
+# 9. Advanced Features → Compliance Setup → SOC 2
 ```
 
 ### Development Workflow
