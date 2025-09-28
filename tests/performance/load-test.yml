@@ -1,0 +1,49 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 120
+      arrivalRate: 10
+      name: "Load phase"
+    - duration: 60
+      arrivalRate: 20
+      name: "Stress phase"
+    - duration: 30
+      arrivalRate: 5
+      name: "Cool down phase"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Get users"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/users"
+
+  - name: "Create user"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/users"
+          json:
+            name: "Test User {{ $randomInt }}"
+            email: "test{{ $randomInt }}@example.com"
+
+  - name: "Get single user"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/users/1"
+
+  - name: "Update user"
+    weight: 10
+    flow:
+      - put:
+          url: "/api/users/1"
+          json:
+            name: "Updated User"
+            email: "updated@example.com"

@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: {{projectName}}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{databaseName}}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - {{projectName}}-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: {{projectName}}-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis1234 --maxmemory 256mb --appendonly yes
+    ports:
+      - "6379:6379"
+    networks:
+      - {{projectName}}-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node.js API Server
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: {{projectName}}-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: {{databaseName}}
+      DB_USER: postgres
+      DB_PASSWORD: 1234
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis1234
+      JWT_SECRET: {{jwtSecret}}
+      CLIENT_URL: http://localhost:3000
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - {{projectName}}-network
+    volumes:
+      - ./server/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React Client (Development)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: {{projectName}}-client
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+      REACT_APP_STRIPE_PUBLISHABLE_KEY: ${REACT_APP_STRIPE_PUBLISHABLE_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - {{projectName}}-network
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    image: nginx:alpine
+    container_name: {{projectName}}-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - api
+      - client
+    networks:
+      - {{projectName}}-network
+    profiles:
+      - production
+
+  # PM2 Process Manager (Optional)
+  pm2:
+    image: keymetrics/pm2:latest-alpine
+    container_name: {{projectName}}-pm2
+    restart: unless-stopped
+    environment:
+      PM2_PUBLIC_KEY: ${PM2_PUBLIC_KEY}
+      PM2_SECRET_KEY: ${PM2_SECRET_KEY}
+    volumes:
+      - ./server:/app
+      - ./ecosystem.config.js:/app/ecosystem.config.js
+    working_dir: /app
+    command: pm2-runtime start ecosystem.config.js
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - {{projectName}}-network
+    profiles:
+      - pm2
+
+volumes:
+  postgres_data:
+  nginx_logs:
+
+networks:
+  {{projectName}}-network:
+    driver: bridge

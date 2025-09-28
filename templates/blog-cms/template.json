@@ -1,0 +1,31 @@
+{
+  "id": "blog-cms",
+  "name": "Blog CMS",
+  "description": "Full-featured blog with content management system",
+  "features": [
+    "authentication",
+    "posts",
+    "categories",
+    "comments",
+    "admin-panel",
+    "seo",
+    "file-uploads",
+    "rich-text-editor"
+  ],
+  "technologies": [
+    "react",
+    "express",
+    "postgresql",
+    "redis",
+    "nginx",
+    "jwt",
+    "bcrypt"
+  ],
+  "estimatedTime": "15 minutes",
+  "files": 25,
+  "complexity": "intermediate",
+  "author": "PERN Setup Tool",
+  "version": "1.0.0",
+  "created": "2024-01-01",
+  "updated": "2024-01-01"
+}
