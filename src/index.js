@@ -167,6 +167,7 @@ class PERNSetupTool {
           type: 'list',
           name: 'choice',
           message: 'Select a command:',
+          loop: false,
           choices: [
             '1. PostgreSQL',
             '2. Redis (Linux/macOS only)',
@@ -234,7 +235,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'continueChoice',
       message: 'What would you like to do?',
-      choices: [
+      loop: false,
+        choices: [
         '1. Go back to main menu',
         '2. Show Windows alternatives',
         '3. Continue anyway (may not work)'
@@ -298,6 +300,7 @@ class PERNSetupTool {
         type: 'list',
         name: 'featureChoice',
         message: 'Advanced Features:',
+        loop: false,
         choices: [
           '1. Project Templates',
           '2. Performance Optimization',
@@ -315,16 +318,35 @@ class PERNSetupTool {
       const selected = parseInt(featureChoice.split('.')[0]);
 
       switch(selected) {
-        case 1: await this.features.templates.showInterface(); break;
-        case 2: await this.showPerformanceInterface(); break;
-        case 3: await this.components.security.showInterface(); break;
-        case 4: await this.components.compliance.showInterface(); break;
-        case 5: await this.features.analytics.showInterface(); break;
-        case 6: await this.features.plugins.showInterface(); break;
-        case 7: await this.showMicroservicesInterface(); break;
-        case 8: await this.showScalabilityInterface(); break;
-        case 9: await this.showDocumentationInterface(); break;
-        case 10: return this.showMainInterface();
+        case 1: 
+          await this.features.templates.showInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 2: 
+          await this.showPerformanceInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 3: 
+          await this.components.security.showInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 4: 
+          await this.components.compliance.showInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 5: 
+          await this.features.analytics.showInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 6: 
+          await this.features.plugins.showInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 7: 
+          await this.showMicroservicesInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 8: 
+          await this.showScalabilityInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 9: 
+          await this.showDocumentationInterface(); 
+          return this.showAdvancedFeaturesInterface();
+        case 10: 
+          return this.showMainInterface();
       }
 
     } catch (error) {
@@ -340,7 +362,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'optimizationChoice',
       message: 'Performance Optimization Options:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Enable intelligent caching',
         '2. Configure parallel processing',
         '3. Setup resource monitoring',
@@ -353,23 +376,23 @@ class PERNSetupTool {
     switch(parseInt(optimizationChoice.split('.')[0])) {
       case 1:
         await this.features.cache.configure();
-        break;
+        return this.showPerformanceInterface();
       case 2:
         await this.configureParallelProcessing();
-        break;
+        return this.showPerformanceInterface();
       case 3:
         await this.performance.startMonitoring();
         console.log('✅ Resource monitoring started');
-        break;
+        return this.showPerformanceInterface();
       case 4:
         await this.optimizeForCurrentSystem();
-        break;
+        return this.showPerformanceInterface();
       case 5:
         await this.showPerformanceAnalytics();
-        break;
+        return this.showPerformanceInterface();
+      case 6:
+        return this.showAdvancedFeaturesInterface();
     }
-
-    await this.showAdvancedFeaturesInterface();
   }
 
   /**
@@ -451,37 +474,84 @@ class PERNSetupTool {
     console.log(chalk.blue('🏗️  Microservices Setup'));
     console.log('This will configure a complete microservices architecture');
 
+    // First, let user select which project to configure
+    await this.selectProjectForMicroservices();
+
     const { setupType } = await inquirer.prompt({
       type: 'list',
       name: 'setupType',
-      message: 'Microservices setup type:',
-      choices: [
+      message: `Microservices setup type for: ${this.config.get('project.name', 'Current Project')}`,
+      loop: false,
+        choices: [
         '1. Basic service mesh',
         '2. Full microservices architecture',
         '3. Kubernetes deployment',
-        '4. Go back'
+        '4. Change Project',
+        '5. Go back'
       ]
     });
-
-    if (setupType.includes('4. Go back')) {
-      return this.showAdvancedFeaturesInterface();
-    }
 
     const selected = parseInt(setupType.split('.')[0]);
 
     switch(selected) {
       case 1:
         await this.setupBasicServiceMesh();
-        break;
+        return this.showMicroservicesInterface();
       case 2:
         await this.setupFullMicroservicesArchitecture();
-        break;
+        return this.showMicroservicesInterface();
       case 3:
         await this.setupKubernetesDeployment();
-        break;
+        return this.showMicroservicesInterface();
+      case 4:
+        await this.selectProjectForMicroservices();
+        return this.showMicroservicesInterface();
+      case 5:
+        return this.showAdvancedFeaturesInterface();
     }
+  }
 
-    await this.showAdvancedFeaturesInterface();
+  /**
+   * Select project for microservices configuration
+   */
+  async selectProjectForMicroservices() {
+    try {
+      const existingProjects = this.getExistingProjects();
+      
+      if (existingProjects.length === 0) {
+        console.log(chalk.yellow('⚠️  No existing projects found. Creating new project...'));
+        await this.components.project.createProjectInterface();
+        return;
+      }
+
+      const { projectChoice } = await inquirer.prompt({
+        type: 'list',
+        name: 'projectChoice',
+        message: 'Select project for microservices configuration:',
+        loop: false,
+        choices: [
+          ...existingProjects.map((project, index) => ({
+            name: `${project.name} (${project.type}) - ${project.path}`,
+            value: index
+          })),
+          'Create new project'
+        ]
+      });
+
+      if (projectChoice === 'Create new project') {
+        await this.components.project.createProjectInterface();
+        return;
+      }
+
+      const selectedProject = existingProjects[projectChoice];
+      this.config.set('project.path', selectedProject.path);
+      this.config.set('project.name', selectedProject.name);
+      this.config.set('project.type', selectedProject.type);
+      
+      console.log(chalk.green(`✅ Selected project: ${selectedProject.name}`));
+    } catch (error) {
+      await this.handleError('microservices-project-selection', error);
+    }
   }
 
   /**
@@ -551,7 +621,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'architectureType',
       message: 'Architecture pattern:',
-      choices: [
+      loop: false,
+        choices: [
         '1. API Gateway + Services',
         '2. Event-driven microservices',
         '3. CQRS pattern',
@@ -692,7 +763,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'clusterType',
       message: 'Kubernetes cluster type:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Local (Minikube/Docker Desktop)',
         '2. Cloud (AWS EKS)',
         '3. Cloud (Google GKE)',
@@ -857,35 +929,86 @@ class PERNSetupTool {
   async showScalabilityInterface() {
     console.log(chalk.blue('📈 Scalability Configuration'));
 
+    // First, let user select which project to configure
+    await this.selectProjectForScalability();
+
     const { scalabilityChoice } = await inquirer.prompt({
       type: 'list',
       name: 'scalabilityChoice',
-      message: 'Scalability options:',
-      choices: [
+      message: `Scalability options for: ${this.config.get('project.name', 'Current Project')}`,
+      loop: false,
+        choices: [
         '1. Configure auto-scaling',
         '2. Setup load balancing',
         '3. Database scaling',
         '4. Performance monitoring',
-        '5. Go back'
+        '5. Change Project',
+        '6. Go back'
       ]
     });
 
     switch(parseInt(scalabilityChoice.split('.')[0])) {
       case 1:
         await this.configureAutoScaling();
-        break;
+        return this.showScalabilityInterface();
       case 2:
         await this.setupLoadBalancing();
-        break;
+        return this.showScalabilityInterface();
       case 3:
         await this.configureDatabaseScaling();
-        break;
+        return this.showScalabilityInterface();
       case 4:
         await this.setupScalabilityMonitoring();
-        break;
+        return this.showScalabilityInterface();
+      case 5:
+        await this.selectProjectForScalability();
+        return this.showScalabilityInterface();
+      case 6:
+        return this.showAdvancedFeaturesInterface();
     }
+  }
 
-    await this.showAdvancedFeaturesInterface();
+  /**
+   * Select project for scalability configuration
+   */
+  async selectProjectForScalability() {
+    try {
+      const existingProjects = this.getExistingProjects();
+      
+      if (existingProjects.length === 0) {
+        console.log(chalk.yellow('⚠️  No existing projects found. Creating new project...'));
+        await this.components.project.createProjectInterface();
+        return;
+      }
+
+      const { projectChoice } = await inquirer.prompt({
+        type: 'list',
+        name: 'projectChoice',
+        message: 'Select project for scalability configuration:',
+        loop: false,
+        choices: [
+          ...existingProjects.map((project, index) => ({
+            name: `${project.name} (${project.type}) - ${project.path}`,
+            value: index
+          })),
+          'Create new project'
+        ]
+      });
+
+      if (projectChoice === 'Create new project') {
+        await this.components.project.createProjectInterface();
+        return;
+      }
+
+      const selectedProject = existingProjects[projectChoice];
+      this.config.set('project.path', selectedProject.path);
+      this.config.set('project.name', selectedProject.name);
+      this.config.set('project.type', selectedProject.type);
+      
+      console.log(chalk.green(`✅ Selected project: ${selectedProject.name}`));
+    } catch (error) {
+      await this.handleError('scalability-project-selection', error);
+    }
   }
 
   /**
@@ -927,7 +1050,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'lbType',
       message: 'Load balancing type:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Application Load Balancing (HTTP/HTTPS)',
         '2. Network Load Balancing (TCP/UDP)',
         '3. Database Load Balancing',
@@ -986,7 +1110,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'algorithm',
       message: 'Load balancing algorithm:',
-      choices: [
+      loop: false,
+        choices: [
         'round_robin',
         'least_conn',
         'ip_hash',
@@ -1046,7 +1171,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'protocol',
       message: 'Network protocol:',
-      choices: ['TCP', 'UDP', 'Both']
+      loop: false,
+        choices: ['TCP', 'UDP', 'Both']
     });
 
     const { frontendPort } = await inquirer.prompt({
@@ -1102,7 +1228,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'dbType',
       message: 'Database type:',
-      choices: ['PostgreSQL', 'MySQL', 'MongoDB']
+      loop: false,
+        choices: ['PostgreSQL', 'MySQL', 'MongoDB']
     });
 
     const { readWriteSplit } = await inquirer.prompt({
@@ -1148,7 +1275,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'serviceDiscovery',
       message: 'Service discovery mechanism:',
-      choices: [
+      loop: false,
+        choices: [
         'Consul',
         'etcd',
         'Kubernetes DNS',
@@ -1357,7 +1485,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'scalingType',
       message: 'Database scaling approach:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Vertical scaling (increase resources)',
         '2. Horizontal scaling (read replicas)',
         '3. Sharding configuration',
@@ -1469,7 +1598,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'replicationType',
       message: 'Replication type:',
-      choices: [
+      loop: false,
+        choices: [
         'Streaming replication',
         'Logical replication',
         'Physical replication'
@@ -1551,7 +1681,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'shardingStrategy',
       message: 'Sharding strategy:',
-      choices: [
+      loop: false,
+        choices: [
         'Hash-based sharding',
         'Range-based sharding',
         'Directory-based sharding'
@@ -1599,7 +1730,8 @@ class PERNSetupTool {
       type: 'list',
       name: 'poolType',
       message: 'Connection pool type:',
-      choices: [
+      loop: false,
+        choices: [
         'PgBouncer',
         'PgPool-II',
         'Built-in PostgreSQL pooling',
@@ -1825,7 +1957,8 @@ client_idle_limit = 0
       type: 'list',
       name: 'docChoice',
       message: 'Interactive Documentation:',
-      choices: [
+      loop: false,
+        choices: [
         '1. View setup guide',
         '2. Run interactive examples',
         '3. Configuration preview',
@@ -1839,25 +1972,25 @@ client_idle_limit = 0
     switch(parseInt(docChoice.split('.')[0])) {
       case 1:
         await this.showSetupGuide();
-        break;
+        return this.showDocumentationInterface();
       case 2:
         await this.runInteractiveExamples();
-        break;
+        return this.showDocumentationInterface();
       case 3:
         await this.showConfigurationPreview();
-        break;
+        return this.showDocumentationInterface();
       case 4:
         await this.showTroubleshootingGuide();
-        break;
+        return this.showDocumentationInterface();
       case 5:
         await this.showAPIDocumentation();
-        break;
+        return this.showDocumentationInterface();
       case 6:
         await this.startDocumentationServer();
-        break;
+        return this.showDocumentationInterface();
+      case 7:
+        return this.showAdvancedFeaturesInterface();
     }
-
-    await this.showAdvancedFeaturesInterface();
   }
 
   /**
@@ -1898,7 +2031,8 @@ client_idle_limit = 0
       type: 'list',
       name: 'exampleCategory',
       message: 'Choose an example category:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Basic PERN Setup',
         '2. Authentication & Security',
         '3. Database Operations',
@@ -1947,7 +2081,8 @@ client_idle_limit = 0
       type: 'list',
       name: 'example',
       message: 'Choose a basic setup example:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Hello World PERN Application',
         '2. Project Structure Setup',
         '3. Environment Configuration',
@@ -2993,7 +3128,8 @@ docker-compose -f docker-compose.prod.yml up -d
       type: 'list',
       name: 'docAction',
       message: 'API Documentation Options:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Generate OpenAPI/Swagger documentation',
         '2. Generate Postman collection',
         '3. Generate API blueprint',
@@ -3040,7 +3176,8 @@ docker-compose -f docker-compose.prod.yml up -d
       type: 'list',
       name: 'apiType',
       message: 'API type to document:',
-      choices: [
+      loop: false,
+        choices: [
         'REST API',
         'GraphQL API',
         'Both'
@@ -3842,7 +3979,8 @@ Delete a user account.
       type: 'list',
       name: 'selectedDoc',
       message: 'Select documentation to view:',
-      choices: foundDocs
+      loop: false,
+        choices: foundDocs
     });
 
     const docPath = path.join(process.cwd(), selectedDoc);
@@ -3871,7 +4009,8 @@ Delete a user account.
       type: 'list',
       name: 'serverType',
       message: 'Documentation server type:',
-      choices: [
+      loop: false,
+        choices: [
         'Swagger UI (OpenAPI)',
         'Postman Mock Server',
         'Redoc (OpenAPI)',
@@ -3979,7 +4118,8 @@ Delete a user account.
       type: 'list',
       name: 'serverType',
       message: 'Documentation server type:',
-      choices: [
+      loop: false,
+        choices: [
         '1. Full Documentation Hub (Recommended)',
         '2. API Documentation Only',
         '3. Setup Guide Server',
@@ -4638,7 +4778,8 @@ Delete a user account.
       type: 'list',
       name: 'choice',
       message: 'Setup Summary',
-      choices: [
+      loop: false,
+        choices: [
         '1. View setup summary',
         '2. Export configuration',
         '3. Start all services',
@@ -4782,7 +4923,8 @@ Delete a user account.
       type: 'list',
       name: 'recoveryChoice',
       message: 'How would you like to proceed?',
-      choices: [
+      loop: false,
+        choices: [
         '1. Retry the operation',
         '2. Skip and continue',
         '3. View troubleshooting guide',

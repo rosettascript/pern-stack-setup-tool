@@ -30,17 +30,22 @@ class AnalyticsManager {
    */
   async showInterface() {
     try {
+      // First, let user select which project to analyze
+      await this.selectProject();
+      
       const { analyticsChoice } = await inquirer.prompt({
         type: 'list',
         name: 'analyticsChoice',
-        message: 'Analytics & Insights:',
+        message: `Analytics & Insights for: ${this.config.get('project.name', 'Current Project')}`,
+        loop: false,
         choices: [
           '1. View setup analytics',
           '2. Performance insights',
           '3. Usage statistics',
           '4. Optimization recommendations',
           '5. Export analytics data',
-          '6. Go back'
+          '6. Change Project',
+          '7. Go back'
         ]
       });
 
@@ -49,26 +54,164 @@ class AnalyticsManager {
       switch(selected) {
         case 1:
           await this.displaySetupAnalytics();
-          break;
+          return this.showInterface();
         case 2:
           await this.displayPerformanceInsights();
-          break;
+          return this.showInterface();
         case 3:
           await this.displayUsageStatistics();
-          break;
+          return this.showInterface();
         case 4:
           await this.displayOptimizationRecommendations();
-          break;
+          return this.showInterface();
         case 5:
           await this.exportAnalyticsData();
-          break;
+          return this.showInterface();
         case 6:
+          await this.selectProject();
+          return this.showInterface();
+        case 7:
           return this.setup.showAdvancedFeaturesInterface();
       }
 
     } catch (error) {
       await this.setup.handleError('analytics-interface', error);
     }
+  }
+
+  /**
+   * Select project for analytics
+   */
+  async selectProject() {
+    try {
+      const fs = require('fs-extra');
+      const path = require('path');
+      
+      // Get existing projects
+      const existingProjects = [];
+      const commonPaths = [
+        path.join(require('os').homedir(), 'Projects'),
+        path.join(require('os').homedir(), 'Documents'),
+        path.join(require('os').homedir(), 'Downloads'),
+        process.cwd()
+      ];
+
+      for (const basePath of commonPaths) {
+        if (fs.existsSync(basePath)) {
+          const items = await fs.readdir(basePath);
+          for (const item of items) {
+            const itemPath = path.join(basePath, item);
+            const stat = await fs.stat(itemPath);
+            if (stat.isDirectory()) {
+              // Check if it's a project directory
+              if (fs.existsSync(path.join(itemPath, 'package.json')) ||
+                  fs.existsSync(path.join(itemPath, 'server')) ||
+                  fs.existsSync(path.join(itemPath, 'client'))) {
+                existingProjects.push({
+                  name: item,
+                  path: itemPath,
+                  type: this.detectProjectType(itemPath)
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Add current directory if it's a project
+      const currentDir = process.cwd();
+      const currentDirName = path.basename(currentDir);
+      if (!existingProjects.find(p => p.path === currentDir) && 
+          (fs.existsSync(path.join(currentDir, 'package.json')) ||
+           fs.existsSync(path.join(currentDir, 'server')) ||
+           fs.existsSync(path.join(currentDir, 'client')))) {
+        existingProjects.unshift({
+          name: `${currentDirName} (current)`,
+          path: currentDir,
+          type: this.detectProjectType(currentDir)
+        });
+      }
+
+      if (existingProjects.length === 0) {
+        console.log('❌ No projects found. Please create a project first using option 4 (Folder Structure).');
+        return this.setup.showMainInterface();
+      }
+
+      // Show project selection
+      const { selectedProject } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedProject',
+        message: 'Select project to analyze:',
+        loop: false,
+        choices: [
+          ...existingProjects.map((project, index) => ({
+            name: `${project.name} (${project.type}) - ${project.path}`,
+            value: index
+          })),
+          'Create new project',
+          'Enter custom path'
+        ]
+      });
+
+      if (selectedProject === 'Create new project') {
+        console.log('🔄 Redirecting to project creation...');
+        return this.setup.components.project.showInterface();
+      }
+
+      if (selectedProject === 'Enter custom path') {
+        const { customPath } = await inquirer.prompt({
+          type: 'input',
+          name: 'customPath',
+          message: 'Enter project path:',
+          validate: input => {
+            if (!input.trim()) return 'Path is required';
+            if (!fs.existsSync(input)) return 'Path does not exist';
+            return true;
+          }
+        });
+        
+        this.config.set('project.name', path.basename(customPath));
+        this.config.set('project.path', customPath);
+        this.config.set('project.type', this.detectProjectType(customPath));
+        return;
+      }
+
+      const selectedProjectData = existingProjects[selectedProject];
+      this.config.set('project.name', selectedProjectData.name);
+      this.config.set('project.path', selectedProjectData.path);
+      this.config.set('project.type', selectedProjectData.type);
+
+    } catch (error) {
+      await this.setup.handleError('project-selection', error);
+    }
+  }
+
+  /**
+   * Detect project type
+   */
+  detectProjectType(projectPath) {
+    const fs = require('fs-extra');
+    const path = require('path');
+    
+    if (fs.existsSync(path.join(projectPath, 'package.json'))) {
+      try {
+        const packageJson = fs.readJsonSync(path.join(projectPath, 'package.json'));
+        if (packageJson.dependencies && packageJson.dependencies.react) return 'frontend';
+        if (packageJson.dependencies && packageJson.dependencies.express) return 'backend';
+        return 'fullstack';
+      } catch {
+        return 'unknown';
+      }
+    }
+    
+    if (fs.existsSync(path.join(projectPath, 'server')) && fs.existsSync(path.join(projectPath, 'client'))) {
+      return 'fullstack';
+    }
+    
+    if (fs.existsSync(path.join(projectPath, 'server'))) return 'backend';
+    if (fs.existsSync(path.join(projectPath, 'client'))) return 'frontend';
+    
+    return 'unknown';
   }
 
   /**
@@ -340,6 +483,7 @@ class AnalyticsManager {
         type: 'list',
         name: 'format',
         message: 'Select export format:',
+        loop: false,
         choices: ['json', 'csv', 'xml']
       });
 

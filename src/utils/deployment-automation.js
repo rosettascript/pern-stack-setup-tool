@@ -37,7 +37,8 @@ class DeploymentAutomation {
           type: 'list',
           name: 'choice',
           message: 'Deployment Automation',
-          choices: [
+          loop: false,
+        choices: [
             '1. Deploy to development',
             '2. Deploy to staging',
             '3. Deploy to production',
@@ -698,6 +699,7 @@ class DeploymentAutomation {
         type: 'list',
         name: 'setting',
         message: 'Deployment settings:',
+        loop: false,
         choices: [
           '1. Configure deployment environments',
           '2. Setup deployment pipeline',
@@ -783,6 +785,7 @@ class DeploymentAutomation {
         type: 'list',
         name: 'pipelineType',
         message: 'Pipeline type:',
+        loop: false,
         choices: [
           'Simple (test -> deploy)',
           'Standard (test -> build -> deploy)',
@@ -976,6 +979,7 @@ class DeploymentAutomation {
         type: 'list',
         name: 'deploymentId',
         message: 'Select deployment to rollback to:',
+        loop: false,
         choices: this.deploymentHistory
           .filter(d => d.status === 'completed')
           .slice(0, 5)

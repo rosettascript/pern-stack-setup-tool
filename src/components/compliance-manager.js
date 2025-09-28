@@ -35,11 +35,15 @@ class ComplianceManager {
    */
   async showInterface() {
     try {
+      // First, let user select which project to configure
+      await this.selectProject();
+      
       const { choice } = await inquirer.prompt([
         {
           type: 'list',
           name: 'choice',
-          message: 'Configuration Section',
+          message: `Configuration Section for: ${this.config.get('project.name', 'Current Project')}`,
+          loop: false,
           choices: [
             '1. Environment Variables',
             '2. Database Configuration',
@@ -47,7 +51,8 @@ class ComplianceManager {
             '4. Authentication Configuration',
             '5. Security Settings',
             '6. Logging Configuration',
-            '7. Go back'
+            '7. Change Project',
+            '8. Go back'
           ]
         }
       ]);
@@ -74,11 +79,175 @@ class ComplianceManager {
           await this.loggingConfiguration();
           break;
         case 7:
+          await this.selectProject();
+          return this.showInterface();
+        case 8:
           return this.setup.showMainInterface();
       }
 
     } catch (error) {
       await this.setup.handleError('compliance-interface', error);
+    }
+  }
+
+  /**
+   * Select project for configuration
+   */
+  async selectProject() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Get common project directories
+      const homeDir = os.homedir();
+      const commonDirs = [
+        path.join(homeDir, 'Projects'),
+        path.join(homeDir, 'Documents'),
+        path.join(homeDir, 'Downloads'),
+        path.join(homeDir, 'Desktop'),
+        process.cwd()
+      ];
+
+      // Find existing projects
+      const existingProjects = [];
+      for (const dir of commonDirs) {
+        if (fs.existsSync(dir)) {
+          try {
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            for (const item of items) {
+              if (item.isDirectory()) {
+                const projectPath = path.join(dir, item.name);
+                // Check if it looks like a project (has package.json or is a PERN project)
+                if (fs.existsSync(path.join(projectPath, 'package.json')) ||
+                    fs.existsSync(path.join(projectPath, 'server')) ||
+                    fs.existsSync(path.join(projectPath, 'client'))) {
+                  existingProjects.push({
+                    name: item.name,
+                    path: projectPath,
+                    type: this.detectProjectType(projectPath)
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            // Skip directories we can't read
+            continue;
+          }
+        }
+      }
+
+      // Add current directory if it's a project
+      const currentDir = process.cwd();
+      const currentDirName = path.basename(currentDir);
+      if (!existingProjects.find(p => p.path === currentDir) && 
+          (fs.existsSync(path.join(currentDir, 'package.json')) ||
+           fs.existsSync(path.join(currentDir, 'server')) ||
+           fs.existsSync(path.join(currentDir, 'client')))) {
+        existingProjects.unshift({
+          name: `${currentDirName} (current)`,
+          path: currentDir,
+          type: this.detectProjectType(currentDir)
+        });
+      }
+
+      if (existingProjects.length === 0) {
+        console.log('❌ No projects found. Please create a project first using option 4 (Folder Structure).');
+        return this.setup.showMainInterface();
+      }
+
+      // Show project selection
+      const { selectedProject } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedProject',
+        message: 'Select project to configure:',
+        loop: false,
+        choices: [
+          ...existingProjects.map((project, index) => ({
+            name: `${project.name} (${project.type}) - ${project.path}`,
+            value: index
+          })),
+          'Create new project',
+          'Enter custom path'
+        ]
+      });
+
+      if (selectedProject === 'Create new project') {
+        console.log('🔄 Redirecting to project creation...');
+        return this.setup.components.project.showInterface();
+      }
+
+      if (selectedProject === 'Enter custom path') {
+        const { customPath } = await inquirer.prompt({
+          type: 'input',
+          name: 'customPath',
+          message: 'Enter project path:',
+          validate: input => {
+            if (!input.trim()) return 'Path is required';
+            if (!fs.existsSync(input.trim())) return 'Path does not exist';
+            return true;
+          }
+        });
+        
+        const projectName = path.basename(customPath.trim());
+        this.config.set('project.name', projectName);
+        this.config.set('project.location', customPath.trim());
+        this.config.set('project.type', this.detectProjectType(customPath.trim()));
+        
+        console.log(`✅ Selected project: ${projectName} at ${customPath.trim()}`);
+        return;
+      }
+
+      // Set selected project
+      const project = existingProjects[selectedProject];
+      this.config.set('project.name', project.name.replace(' (current)', ''));
+      this.config.set('project.location', project.path);
+      this.config.set('project.type', project.type);
+      
+      console.log(`✅ Selected project: ${project.name} at ${project.path}`);
+      
+    } catch (error) {
+      await this.setup.handleError('project-selection', error);
+    }
+  }
+
+  /**
+   * Detect project type
+   */
+  detectProjectType(projectPath) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Check for package.json
+      const packageJsonPath = path.join(projectPath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        try {
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+          if (packageJson.dependencies && packageJson.dependencies.react) {
+            return 'React';
+          }
+          if (packageJson.dependencies && packageJson.dependencies.express) {
+            return 'Express';
+          }
+        } catch (error) {
+          // Continue with other checks
+        }
+      }
+      
+      // Check directory structure
+      if (fs.existsSync(path.join(projectPath, 'client')) && fs.existsSync(path.join(projectPath, 'server'))) {
+        return 'Full-stack';
+      }
+      if (fs.existsSync(path.join(projectPath, 'server'))) {
+        return 'Backend';
+      }
+      if (fs.existsSync(path.join(projectPath, 'client'))) {
+        return 'Frontend';
+      }
+      
+      return 'Unknown';
+    } catch (error) {
+      return 'Unknown';
     }
   }
 
@@ -91,6 +260,7 @@ class ComplianceManager {
         type: 'list',
         name: 'environment',
         message: 'Environment Variables Setup',
+        loop: false,
         choices: [
           '1. Development environment',
           '2. Production environment',
@@ -126,8 +296,6 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('env-variables-setup', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -135,10 +303,11 @@ class ComplianceManager {
    */
   async setupDevelopmentEnvironment() {
     try {
+      const projectName = this.config.get('project.name', 'myapp');
       const envConfig = {
         NODE_ENV: 'development',
         PORT: 5000,
-        DATABASE_URL: 'postgresql://postgres:1234@localhost:5432/myapp_dev',
+        DATABASE_URL: `postgresql://postgres:1234@localhost:5432/${projectName}_dev`,
         REDIS_URL: 'redis://localhost:6379',
         JWT_SECRET: this.generateSecureSecret(),
         LOG_LEVEL: 'debug',
@@ -166,10 +335,11 @@ class ComplianceManager {
         validate: input => input.length > 0 || 'Domain is required'
       });
 
+      const projectName = this.config.get('project.name', 'myapp');
       const envConfig = {
         NODE_ENV: 'production',
         PORT: 5000,
-        DATABASE_URL: 'postgresql://postgres:1234@localhost:5432/myapp_prod',
+        DATABASE_URL: `postgresql://postgres:1234@localhost:5432/${projectName}_prod`,
         REDIS_URL: 'redis://localhost:6379',
         JWT_SECRET: this.generateSecureSecret(),
         LOG_LEVEL: 'error',
@@ -192,10 +362,11 @@ class ComplianceManager {
    */
   async setupTestingEnvironment() {
     try {
+      const projectName = this.config.get('project.name', 'myapp');
       const envConfig = {
         NODE_ENV: 'test',
         PORT: 5001,
-        DATABASE_URL: 'postgresql://postgres:1234@localhost:5432/myapp_test',
+        DATABASE_URL: `postgresql://postgres:1234@localhost:5432/${projectName}_test`,
         REDIS_URL: 'redis://localhost:6380',
         JWT_SECRET: 'test-jwt-secret',
         LOG_LEVEL: 'warn',
@@ -216,14 +387,17 @@ class ComplianceManager {
    */
   async createEnvironmentFile(filename, config) {
     try {
+      const projectPath = this.config.get('project.location', process.cwd());
+      const filePath = path.join(projectPath, filename);
+      
       let envContent = '';
 
       Object.entries(config).forEach(([key, value]) => {
         envContent += `${key}=${value}\n`;
       });
 
-      await fs.writeFile(filename, envContent);
-      console.log(`✅ Environment file created: ${filename}`);
+      await fs.writeFile(filePath, envContent);
+      console.log(`✅ Environment file created: ${filePath}`);
     } catch (error) {
       console.error('❌ Environment file creation failed:', error.message);
       throw error;
@@ -292,6 +466,7 @@ class ComplianceManager {
         type: 'list',
         name: 'dbChoice',
         message: 'Database Configuration',
+        loop: false,
         choices: [
           '1. Configure connection settings',
           '2. Setup database security',
@@ -323,8 +498,6 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('database-configuration', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -449,6 +622,7 @@ class ComplianceManager {
         type: 'list',
         name: 'backupSchedule',
         message: 'Backup schedule:',
+        loop: false,
         choices: ['Daily', 'Weekly', 'Monthly', 'Custom']
       });
 
@@ -484,6 +658,7 @@ class ComplianceManager {
         type: 'list',
         name: 'apiChoice',
         message: 'API Configuration',
+        loop: false,
         choices: [
           '1. Configure API settings',
           '2. Setup API versioning',
@@ -516,7 +691,6 @@ class ComplianceManager {
       await this.setup.handleError('api-configuration', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -567,6 +741,7 @@ class ComplianceManager {
         type: 'list',
         name: 'versionStrategy',
         message: 'API versioning strategy:',
+        loop: false,
         choices: [
           'URL versioning (/api/v1/)',
           'Header versioning (Accept: application/vnd.api.v1+json)',
@@ -633,6 +808,7 @@ class ComplianceManager {
         type: 'list',
         name: 'docTool',
         message: 'API documentation tool:',
+        loop: false,
         choices: [
           'Swagger/OpenAPI',
           'Postman',
@@ -666,6 +842,7 @@ class ComplianceManager {
         type: 'list',
         name: 'authChoice',
         message: 'Authentication Configuration',
+        loop: false,
         choices: [
           '1. Basic Authentication',
           '2. Multi-role Authentication',
@@ -702,7 +879,6 @@ class ComplianceManager {
       await this.setup.handleError('auth-configuration', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -714,6 +890,7 @@ class ComplianceManager {
         type: 'list',
         name: 'authMethod',
         message: 'Select authentication method:',
+        loop: false,
         choices: [
           '1. Email + Password',
           '2. Username + Password',
@@ -787,6 +964,7 @@ class ComplianceManager {
         type: 'list',
         name: 'hashingAlgorithm',
         message: 'Password hashing algorithm:',
+        loop: false,
         choices: ['bcrypt', 'argon2', 'scrypt'],
         default: 'bcrypt'
       });
@@ -908,6 +1086,7 @@ class ComplianceManager {
         type: 'list',
         name: 'roleConfig',
         message: 'Select role configuration:',
+        loop: false,
         choices: [
           '1. Two-tier (User/Admin)',
           '2. Three-tier (User/Moderator/Admin)',
@@ -970,6 +1149,7 @@ class ComplianceManager {
         type: 'list',
         name: 'defaultRole',
         message: 'Default role for new users:',
+        loop: false,
         choices: ['user', 'admin'],
         default: 'user'
       });
@@ -1187,6 +1367,7 @@ class ComplianceManager {
         type: 'list',
         name: 'secretKey',
         message: 'Secret key method:',
+        loop: false,
         choices: [
           'Auto-generate secure secret',
           'Manual entry'
@@ -1211,6 +1392,7 @@ class ComplianceManager {
         type: 'list',
         name: 'algorithm',
         message: 'JWT algorithm:',
+        loop: false,
         choices: ['HS256', 'RS256', 'ES256'],
         default: 'HS256'
       });
@@ -1219,6 +1401,7 @@ class ComplianceManager {
         type: 'list',
         name: 'includeIn',
         message: 'Include token in:',
+        loop: false,
         choices: ['header', 'cookie', 'both'],
         default: 'header'
       });
@@ -1257,6 +1440,7 @@ class ComplianceManager {
         type: 'list',
         name: 'securityChoice',
         message: 'Security Settings',
+        loop: false,
         choices: [
           '1. CORS settings',
           '2. Rate limiting',
@@ -1301,7 +1485,6 @@ class ComplianceManager {
       await this.setup.handleError('security-settings', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -1438,6 +1621,7 @@ class ComplianceManager {
         type: 'list',
         name: 'apiKeyStrategy',
         message: 'API key strategy:',
+        loop: false,
         choices: [
           'Single key for all access',
           'Multiple keys with different permissions',
@@ -1512,6 +1696,7 @@ class ComplianceManager {
         type: 'list',
         name: 'emailProvider',
         message: 'Email provider for password reset:',
+        loop: false,
         choices: [
           'SendGrid',
           'AWS SES',
@@ -1546,6 +1731,7 @@ class ComplianceManager {
         type: 'list',
         name: 'loggingChoice',
         message: 'Logging Configuration',
+        loop: false,
         choices: [
           '1. Application logs (Winston)',
           '2. HTTP logs (Morgan)',
@@ -1586,7 +1772,6 @@ class ComplianceManager {
       await this.setup.handleError('logging-configuration', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -1598,6 +1783,7 @@ class ComplianceManager {
         type: 'list',
         name: 'logLevel',
         message: 'Log level:',
+        loop: false,
         choices: ['error', 'warn', 'info', 'debug'],
         default: 'info'
       });
@@ -1633,6 +1819,7 @@ class ComplianceManager {
         type: 'list',
         name: 'morganFormat',
         message: 'Morgan log format:',
+        loop: false,
         choices: ['combined', 'common', 'dev', 'short', 'tiny'],
         default: 'combined'
       });
@@ -1707,6 +1894,7 @@ class ComplianceManager {
         type: 'list',
         name: 'errorTracking',
         message: 'Error tracking service:',
+        loop: false,
         choices: [
           'Sentry',
           'Rollbar',
@@ -1785,6 +1973,7 @@ class ComplianceManager {
         type: 'list',
         name: 'logService',
         message: 'Centralized logging service:',
+        loop: false,
         choices: [
           'Elasticsearch + Kibana',
           'Splunk',

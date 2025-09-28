@@ -40,6 +40,7 @@ class TemplateEngine {
         type: 'list',
         name: 'templateChoice',
         message: 'Select project template:',
+        loop: false,
         choices: [...choices, 'Custom template configuration', 'Browse community templates', 'Go back']
       });
 
@@ -125,27 +126,65 @@ class TemplateEngine {
       const cacheKey = `template-${template.id}-${JSON.stringify(variables)}`;
 
       await this.setup.safety.safeExecute('template-generation', {
-        template: template.id,
-        targetDir,
-        variables
+        templateName: template.name,
+        projectName: variables.projectName,
+        authorName: variables.author,
+        databaseName: variables.databaseName,
+        jwtSecret: variables.jwtSecret,
+        projectLocation: targetDir
       }, async () => {
         const startTime = Date.now();
+        const ora = require('ora');
+        let structureSpinner = null;
+        let depsSpinner = null;
+        let configSpinner = null;
 
-        // Generate project from template
-        await this.generateProject(template.id, targetDir, variables);
+        try {
+          // Step 1: Generate project structure
+          console.log('🏗️  Generating project structure...');
+          structureSpinner = ora('🏗️  Creating project files and directories...').start();
+          await this.generateProject(template.id, targetDir, variables);
+          structureSpinner.succeed('✅ Project structure generated');
+          console.log('📁 Project files created successfully');
 
-        // Install dependencies
-        await this.installTemplateDependencies(targetDir, template);
+          // Step 2: Install dependencies
+          console.log('📦 Installing dependencies...');
+          depsSpinner = ora('📦 Installing project dependencies...').start();
+          await this.installTemplateDependencies(targetDir, template);
+          depsSpinner.succeed('✅ Dependencies installed');
+          console.log('📦 All dependencies installed successfully');
 
-        // Configure environment
-        await this.configureTemplateEnvironment(targetDir, variables, template);
+          // Step 3: Configure environment
+          console.log('⚙️  Configuring environment...');
+          configSpinner = ora('⚙️  Setting up environment configuration...').start();
+          await this.configureTemplateEnvironment(targetDir, variables, template);
+          configSpinner.succeed('✅ Environment configured');
+          console.log('⚙️  Environment configuration completed');
 
-        const duration = Date.now() - startTime;
+          const duration = Date.now() - startTime;
 
-        // Record analytics
-        await this.recordTemplateGeneration(template.id, duration, true);
+          // Record analytics
+          await this.recordTemplateGeneration(template.id, duration, true);
 
-        console.log(`✅ ${template.name} setup completed in ${Math.floor(duration / 1000)}s`);
+          console.log(`🎉 ${template.name} setup completed in ${Math.floor(duration / 1000)}s`);
+          console.log(`📁 Project created at: ${targetDir}`);
+          console.log('🚀 Your project is ready to use!');
+
+          // Return proper result object
+          return {
+            success: true,
+            message: `${template.name} setup completed successfully`,
+            timestamp: new Date().toISOString(),
+            duration: duration,
+            projectPath: targetDir
+          };
+        } catch (error) {
+          // Stop any running spinners
+          if (structureSpinner) structureSpinner.fail('❌ Project structure generation failed');
+          if (depsSpinner) depsSpinner.fail('❌ Dependencies installation failed');
+          if (configSpinner) configSpinner.fail('❌ Environment configuration failed');
+          throw error;
+        }
       });
 
     } catch (error) {
@@ -307,26 +346,71 @@ class TemplateEngine {
    */
   async installTemplateDependencies(targetDir, template) {
     try {
-      console.log('📦 Installing dependencies...');
+      const ora = require('ora');
+      let serverSpinner = null;
+      let clientSpinner = null;
 
       // Install server dependencies
       if (await fs.pathExists(`${targetDir}/package.json`)) {
-        await this.setup.safety.safeExecute('template-deps-install', { targetDir }, async () => {
-          const { exec } = require('child-process-promise');
-          await exec('npm install', { cwd: targetDir });
-        });
+        console.log('📦 Installing server dependencies...');
+        serverSpinner = ora('📦 Installing server dependencies (Express, etc.)...').start();
+        try {
+          await this.setup.safety.safeExecute('template-deps-install', { projectPath: targetDir }, async () => {
+            const { exec } = require('child-process-promise');
+            await exec('npm install', { cwd: targetDir });
+            
+            // Return proper result object
+            return {
+              success: true,
+              message: 'Template dependencies installed successfully',
+              timestamp: new Date().toISOString(),
+              projectPath: targetDir
+            };
+          });
+          serverSpinner.succeed('✅ Server dependencies installed');
+          console.log('📦 Server dependencies installed successfully');
+        } catch (error) {
+          serverSpinner.fail('❌ Server dependencies installation failed');
+          throw error;
+        }
       }
 
       // Install client dependencies
       const clientDir = path.join(targetDir, 'client');
       if (await fs.pathExists(`${clientDir}/package.json`)) {
-        await this.setup.safety.safeExecute('client-deps-install', { targetDir: clientDir }, async () => {
-          const { exec } = require('child-process-promise');
-          await exec('npm install', { cwd: clientDir });
-        });
+        console.log('📦 Installing client dependencies...');
+        clientSpinner = ora('📦 Installing client dependencies (React, etc.)...').start();
+        try {
+          await this.setup.safety.safeExecute('client-deps-install', { projectPath: clientDir }, async () => {
+            const { exec } = require('child-process-promise');
+            await exec('npm install', { cwd: clientDir });
+            
+            // Return proper result object
+            return {
+              success: true,
+              message: 'Client dependencies installed successfully',
+              timestamp: new Date().toISOString(),
+              projectPath: clientDir
+            };
+          });
+          clientSpinner.succeed('✅ Client dependencies installed');
+          console.log('📦 Client dependencies installed successfully');
+        } catch (error) {
+          clientSpinner.fail('❌ Client dependencies installation failed');
+          throw error;
+        }
       }
 
-      console.log('✅ Dependencies installed');
+      console.log('✅ All dependencies installed');
+      
+      // Return proper result object
+      return {
+        success: true,
+        message: 'Dependencies installed successfully',
+        timestamp: new Date().toISOString(),
+        serverDeps: await fs.pathExists(`${targetDir}/package.json`),
+        clientDeps: await fs.pathExists(`${clientDir}/package.json`)
+      };
     } catch (error) {
       console.error('❌ Dependency installation failed:', error.message);
       throw error;
@@ -338,9 +422,11 @@ class TemplateEngine {
    */
   async configureTemplateEnvironment(targetDir, variables, template) {
     try {
-      console.log('⚙️  Configuring environment...');
+      const ora = require('ora');
+      let envSpinner = null;
+      let exampleSpinner = null;
 
-      // Create .env file
+      // Define envContent outside try-catch blocks
       const envContent = `# Generated by PERN Setup Tool
 NODE_ENV=${variables.nodeEnv}
 PORT=${variables.port}
@@ -363,14 +449,42 @@ PROJECT_NAME=${variables.projectName}
 AUTHOR=${variables.author}
 `;
 
-      const envPath = path.join(targetDir, '.env');
-      await fs.writeFile(envPath, envContent);
+      // Create .env file
+      console.log('⚙️  Creating environment configuration...');
+      envSpinner = ora('⚙️  Setting up environment variables...').start();
+      try {
+        const envPath = path.join(targetDir, '.env');
+        await fs.writeFile(envPath, envContent);
+        envSpinner.succeed('✅ Environment configuration created');
+        console.log('⚙️  Environment file created successfully');
+      } catch (error) {
+        envSpinner.fail('❌ Environment configuration failed');
+        throw error;
+      }
 
       // Create .env.example
-      const envExamplePath = path.join(targetDir, '.env.example');
-      await fs.writeFile(envExamplePath, envContent.replace(variables.jwtSecret, 'your-jwt-secret'));
+      console.log('📝 Creating example environment file...');
+      exampleSpinner = ora('📝 Creating .env.example file...').start();
+      try {
+        const envExamplePath = path.join(targetDir, '.env.example');
+        await fs.writeFile(envExamplePath, envContent.replace(variables.jwtSecret, 'your-jwt-secret'));
+        exampleSpinner.succeed('✅ Example environment file created');
+        console.log('📝 Example environment file created successfully');
+      } catch (error) {
+        exampleSpinner.fail('❌ Example environment file creation failed');
+        throw error;
+      }
 
       console.log('✅ Environment configured');
+
+      // Return proper result object
+      return {
+        success: true,
+        message: 'Environment configured successfully',
+        timestamp: new Date().toISOString(),
+        envFile: path.join(targetDir, '.env'),
+        exampleFile: path.join(targetDir, '.env.example')
+      };
     } catch (error) {
       console.error('❌ Environment configuration failed:', error.message);
       throw error;

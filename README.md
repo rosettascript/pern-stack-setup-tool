@@ -13,14 +13,14 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Project Templates** - Pre-built templates for common use cases
 - **Configuration Management** - Centralized configuration with validation
 
-### 🔒 Advanced Features
-- **Intelligent Caching** - SHA-256 based caching with predictive preloading
-- **Security Scanning** - Multi-layer security vulnerability assessment
-- **Compliance Frameworks** - SOC 2, HIPAA, GDPR, PCI-DSS support
-- **Performance Optimization** - Parallel processing and resource management
-- **Plugin Architecture** - Extensible system with community plugins
-- **Microservices Support** - Service mesh and auto-scaling
-- **Analytics & Insights** - ML-powered optimization recommendations
+### 🔒 Advanced Features (Cross-Platform)
+- **Intelligent Caching** - SHA-256 based caching with predictive preloading (Windows/Linux/macOS)
+- **Security Scanning** - Multi-layer security vulnerability assessment (Windows/Linux/macOS)
+- **Compliance Frameworks** - SOC 2, HIPAA, GDPR, PCI-DSS support (Windows/Linux/macOS)
+- **Performance Optimization** - Parallel processing and resource management (Windows/Linux/macOS)
+- **Plugin Architecture** - Extensible system with community plugins (Windows/Linux/macOS)
+- **Microservices Support** - Service mesh and auto-scaling (Windows/Linux/macOS/Docker)
+- **Analytics & Insights** - ML-powered optimization recommendations (Windows/Linux/macOS)
 
 ### 🛠️ Enterprise Features
 - **Comprehensive Testing** - Unit, integration, E2E, performance, security testing
@@ -46,6 +46,25 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Node.js**: Version 18 or higher
 - **Operating System**: Linux, macOS, or Windows
 - **Permissions**: Administrative/sudo access for system installations
+
+### 🪟 Windows Support
+- **Full Windows Compatibility**: Native Windows support with PowerShell integration
+- **Windows Services**: Automatic Windows service configuration for all components
+- **WSL Integration**: Windows Subsystem for Linux support for Docker operations
+- **Windows Package Managers**: Support for Chocolatey, Scoop, and npm
+- **Windows Paths**: Proper Windows path handling (C:\Users\...)
+- **UAC Awareness**: User Account Control aware permission handling
+
+### 🚀 Windows Advanced Features
+- **Project Templates**: Full Windows support for all template types (Blog CMS, E-commerce, Dashboard, Microservices)
+- **Performance Optimization**: Windows-specific performance tuning and resource management
+- **Security Scanning**: Windows-compatible security vulnerability assessment
+- **Compliance Setup**: SOC 2, HIPAA, GDPR, PCI-DSS compliance on Windows
+- **Analytics & Insights**: ML-powered optimization with Windows performance metrics
+- **Plugin Management**: Windows-compatible plugin system with PowerShell integration
+- **Microservices Setup**: Docker Desktop integration for Windows microservices
+- **Scalability Configuration**: Windows-specific scaling and load balancing
+- **Interactive Documentation**: Windows-compatible documentation system
 
 ### Installation
 

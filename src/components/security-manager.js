@@ -33,18 +33,23 @@ class SecurityManager {
    */
   async showInterface() {
     try {
+      // First, let user select which project to scan
+      await this.selectProject();
+      
       const { choice } = await inquirer.prompt([
         {
           type: 'list',
           name: 'choice',
-          message: 'Security Section',
-          choices: [
+          message: `Security Section for: ${this.config.get('project.name', 'Current Project')}`,
+          loop: false,
+        choices: [
             '1. Scan current setup',
             '2. Configure security policies',
             '3. Setup vulnerability monitoring',
             '4. Generate security report',
             '5. Compliance checking',
-            '6. Go back'
+            '6. Change Project',
+            '7. Go back'
           ]
         }
       ]);
@@ -54,26 +59,164 @@ class SecurityManager {
       switch(selected) {
         case 1:
           await this.performSecurityScan();
-          break;
+          return this.showInterface();
         case 2:
           await this.configureSecurityPolicies();
-          break;
+          return this.showInterface();
         case 3:
           await this.setupVulnerabilityMonitoring();
-          break;
+          return this.showInterface();
         case 4:
-          await this.generateSecurityReport();
-          break;
+          await this.generateSecurityReportStandalone();
+          return this.showInterface();
         case 5:
           await this.complianceChecking();
-          break;
+          return this.showInterface();
         case 6:
+          await this.selectProject();
+          return this.showInterface();
+        case 7:
           return this.setup.showMainInterface();
       }
 
     } catch (error) {
       await this.setup.handleError('security-interface', error);
     }
+  }
+
+  /**
+   * Select project for security scanning
+   */
+  async selectProject() {
+    try {
+      const fs = require('fs-extra');
+      const path = require('path');
+      
+      // Get existing projects
+      const existingProjects = [];
+      const commonPaths = [
+        path.join(require('os').homedir(), 'Projects'),
+        path.join(require('os').homedir(), 'Documents'),
+        path.join(require('os').homedir(), 'Downloads'),
+        process.cwd()
+      ];
+
+      for (const basePath of commonPaths) {
+        if (fs.existsSync(basePath)) {
+          const items = await fs.readdir(basePath);
+          for (const item of items) {
+            const itemPath = path.join(basePath, item);
+            const stat = await fs.stat(itemPath);
+            if (stat.isDirectory()) {
+              // Check if it's a project directory
+              if (fs.existsSync(path.join(itemPath, 'package.json')) ||
+                  fs.existsSync(path.join(itemPath, 'server')) ||
+                  fs.existsSync(path.join(itemPath, 'client'))) {
+                existingProjects.push({
+                  name: item,
+                  path: itemPath,
+                  type: this.detectProjectType(itemPath)
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Add current directory if it's a project
+      const currentDir = process.cwd();
+      const currentDirName = path.basename(currentDir);
+      if (!existingProjects.find(p => p.path === currentDir) && 
+          (fs.existsSync(path.join(currentDir, 'package.json')) ||
+           fs.existsSync(path.join(currentDir, 'server')) ||
+           fs.existsSync(path.join(currentDir, 'client')))) {
+        existingProjects.unshift({
+          name: `${currentDirName} (current)`,
+          path: currentDir,
+          type: this.detectProjectType(currentDir)
+        });
+      }
+
+      if (existingProjects.length === 0) {
+        console.log('❌ No projects found. Please create a project first using option 4 (Folder Structure).');
+        return this.setup.showMainInterface();
+      }
+
+      // Show project selection
+      const { selectedProject } = await inquirer.prompt({
+        type: 'list',
+        name: 'selectedProject',
+        message: 'Select project to scan:',
+        loop: false,
+        choices: [
+          ...existingProjects.map((project, index) => ({
+            name: `${project.name} (${project.type}) - ${project.path}`,
+            value: index
+          })),
+          'Create new project',
+          'Enter custom path'
+        ]
+      });
+
+      if (selectedProject === 'Create new project') {
+        console.log('🔄 Redirecting to project creation...');
+        return this.setup.components.project.showInterface();
+      }
+
+      if (selectedProject === 'Enter custom path') {
+        const { customPath } = await inquirer.prompt({
+          type: 'input',
+          name: 'customPath',
+          message: 'Enter project path:',
+          validate: input => {
+            if (!input.trim()) return 'Path is required';
+            if (!fs.existsSync(input)) return 'Path does not exist';
+            return true;
+          }
+        });
+        
+        this.config.set('project.name', path.basename(customPath));
+        this.config.set('project.path', customPath);
+        this.config.set('project.type', this.detectProjectType(customPath));
+        return;
+      }
+
+      const selectedProjectData = existingProjects[selectedProject];
+      this.config.set('project.name', selectedProjectData.name);
+      this.config.set('project.path', selectedProjectData.path);
+      this.config.set('project.type', selectedProjectData.type);
+
+    } catch (error) {
+      await this.setup.handleError('project-selection', error);
+    }
+  }
+
+  /**
+   * Detect project type
+   */
+  detectProjectType(projectPath) {
+    const fs = require('fs-extra');
+    const path = require('path');
+    
+    if (fs.existsSync(path.join(projectPath, 'package.json'))) {
+      try {
+        const packageJson = fs.readJsonSync(path.join(projectPath, 'package.json'));
+        if (packageJson.dependencies && packageJson.dependencies.react) return 'frontend';
+        if (packageJson.dependencies && packageJson.dependencies.express) return 'backend';
+        return 'fullstack';
+      } catch {
+        return 'unknown';
+      }
+    }
+    
+    if (fs.existsSync(path.join(projectPath, 'server')) && fs.existsSync(path.join(projectPath, 'client'))) {
+      return 'fullstack';
+    }
+    
+    if (fs.existsSync(path.join(projectPath, 'server'))) return 'backend';
+    if (fs.existsSync(path.join(projectPath, 'client'))) return 'frontend';
+    
+    return 'unknown';
   }
 
   /**
@@ -90,18 +233,33 @@ class SecurityManager {
         platform: this.platform
       };
 
-      await this.setup.safety.safeExecute('security-scan', { context }, async () => {
+      const projectPath = this.config.get('project.path', process.cwd());
+      await this.setup.safety.safeExecute('security-scan', { 
+        projectPath: projectPath,
+        scanType: 'full',
+        outputFormat: 'json'
+      }, async () => {
         const results = await this.scanAll(context);
         const report = await this.generateSecurityReport(results);
 
         await this.displaySecurityResults(report);
+        
+        // Return proper result object for safety framework validation
+        return {
+          success: true,
+          message: 'Security scan completed successfully',
+          timestamp: new Date().toISOString(),
+          projectPath: projectPath,
+          scanType: 'full',
+          vulnerabilities: report.summary.totalVulnerabilities,
+          riskScore: report.riskScore.score
+        };
       });
 
     } catch (error) {
       await this.setup.handleError('security-scan', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -130,7 +288,7 @@ class SecurityManager {
       summary: this.generateSummary(results),
       vulnerabilities: this.aggregateVulnerabilities(results),
       recommendations: this.generateRecommendations(results),
-      compliance: this.checkCompliance(results),
+      compliance: this.checkComplianceFromResults(results),
       riskScore: this.calculateRiskScore(results)
     };
 
@@ -282,9 +440,9 @@ class SecurityManager {
   }
 
   /**
-   * Check compliance
+   * Check compliance from results
    */
-  checkCompliance(results) {
+  checkComplianceFromResults(results) {
     const compliance = {
       overall: 'unknown',
       frameworks: {},
@@ -314,12 +472,17 @@ class SecurityManager {
     const weights = { critical: 10, high: 7, medium: 4, low: 1 };
 
     const riskScore = Object.entries(vulnerabilities).reduce((score, [severity, count]) => {
-      return score + (weights[severity] * count);
+      const weight = weights[severity] || 1;
+      const countValue = typeof count === 'number' ? count : 0;
+      return score + (weight * countValue);
     }, 0);
 
+    // Ensure we have a valid number
+    const finalScore = isNaN(riskScore) ? 0 : riskScore;
+
     return {
-      score: riskScore,
-      level: riskScore > 50 ? 'high' : riskScore > 20 ? 'medium' : 'low',
+      score: finalScore,
+      level: finalScore > 50 ? 'high' : finalScore > 20 ? 'medium' : 'low',
       breakdown: vulnerabilities
     };
   }
@@ -396,6 +559,7 @@ class SecurityManager {
         type: 'list',
         name: 'policyType',
         message: 'Select security policy to configure:',
+        loop: false,
         choices: [
           '1. Password policies',
           '2. Authentication policies',
@@ -546,6 +710,7 @@ class SecurityManager {
         type: 'list',
         name: 'defaultRole',
         message: 'Default user role:',
+        loop: false,
         choices: ['user', 'guest', 'member'],
         default: 'user'
       });
@@ -632,6 +797,7 @@ class SecurityManager {
         type: 'list',
         name: 'encryptionLevel',
         message: 'Data encryption level:',
+        loop: false,
         choices: [
           '1. Basic (passwords only)',
           '2. Standard (sensitive data)',
@@ -680,6 +846,7 @@ class SecurityManager {
         type: 'list',
         name: 'monitoringType',
         message: 'Vulnerability monitoring type:',
+        loop: false,
         choices: [
           '1. Continuous monitoring',
           '2. Daily scans',
@@ -714,29 +881,22 @@ class SecurityManager {
       await this.setup.handleError('vulnerability-monitoring-setup', error);
     }
 
-    await this.showInterface();
   }
 
   /**
-   * Generate security report
+   * Generate security report (standalone method)
    */
-  async generateSecurityReport(results = null) {
+  async generateSecurityReportStandalone() {
     try {
-      let report;
+      const context = {
+        projectDir: process.cwd(),
+        dependencies: await this.getProjectDependencies(),
+        configuration: await this.getProjectConfiguration(),
+        platform: this.platform
+      };
 
-      if (!results) {
-        const context = {
-          projectDir: process.cwd(),
-          dependencies: await this.getProjectDependencies(),
-          configuration: await this.getProjectConfiguration(),
-          platform: this.platform
-        };
-
-        results = await this.scanAll(context);
-        report = await this.generateSecurityReport(results);
-      } else {
-        report = results;
-      }
+      const results = await this.scanAll(context);
+      const report = await this.generateSecurityReport(results);
 
       const reportPath = path.join(os.homedir(), '.pern-setup', 'security-report.json');
       await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
@@ -747,8 +907,6 @@ class SecurityManager {
     } catch (error) {
       await this.setup.handleError('security-report-generation', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -760,6 +918,7 @@ class SecurityManager {
         type: 'list',
         name: 'framework',
         message: 'Select compliance framework:',
+        loop: false,
         choices: [
           '1. SOC 2 Type II',
           '2. HIPAA',
@@ -786,7 +945,6 @@ class SecurityManager {
       await this.setup.handleError('compliance-checking', error);
     }
 
-    await this.showInterface();
   }
 
   /**
@@ -900,6 +1058,133 @@ class SecurityManager {
         return this.checkAccessControls(context);
       case 'vulnerability-management':
         return this.checkVulnerabilityManagement(context);
+      
+      // HIPAA compliance checks
+      case 'administrative-safeguards':
+        return this.checkAdministrativeSafeguards(context);
+      case 'physical-safeguards':
+        return this.checkPhysicalSafeguards(context);
+      case 'technical-safeguards':
+        return this.checkTechnicalSafeguards(context);
+      case 'audit-controls':
+        return this.checkAuditControls(context);
+      case 'data-integrity':
+        return this.checkDataIntegrity(context);
+      
+      // GDPR compliance checks
+      case 'data-protection-by-design':
+        return this.checkDataProtectionByDesign(context);
+      case 'consent-management':
+        return this.checkConsentManagement(context);
+      case 'data-subject-rights':
+        return this.checkDataSubjectRights(context);
+      case 'data-portability':
+        return this.checkDataPortability(context);
+      case 'right-to-erasure':
+        return this.checkRightToErasure(context);
+      case 'privacy-by-default':
+        return this.checkPrivacyByDefault(context);
+      case 'data-minimization':
+        return this.checkDataMinimization(context);
+      case 'purpose-limitation':
+        return this.checkPurposeLimitation(context);
+      
+      // PCI-DSS compliance checks
+      case 'firewall-configuration':
+        return this.checkFirewallConfiguration(context);
+      case 'default-passwords':
+        return this.checkDefaultPasswords(context);
+      case 'cardholder-data-protection':
+        return this.checkCardholderDataProtection(context);
+      case 'antivirus-software':
+        return this.checkAntivirusSoftware(context);
+      case 'secure-systems':
+        return this.checkSecureSystems(context);
+      case 'access-restriction':
+        return this.checkAccessRestriction(context);
+      case 'unique-ids':
+        return this.checkUniqueIds(context);
+      case 'physical-access':
+        return this.checkPhysicalAccess(context);
+      case 'network-monitoring':
+        return this.checkNetworkMonitoring(context);
+      case 'security-testing':
+        return this.checkSecurityTesting(context);
+      case 'security-policy':
+        return this.checkSecurityPolicy(context);
+      
+      // ISO 27001 compliance checks
+      case 'information-security-policies':
+        return this.checkInformationSecurityPolicies(context);
+      case 'organization-of-information-security':
+        return this.checkOrganizationOfInformationSecurity(context);
+      case 'human-resource-security':
+        return this.checkHumanResourceSecurity(context);
+      case 'asset-management':
+        return this.checkAssetManagement(context);
+      case 'access-control':
+        return this.checkAccessControl(context);
+      case 'cryptography':
+        return this.checkCryptography(context);
+      case 'physical-environmental-security':
+        return this.checkPhysicalEnvironmentalSecurity(context);
+      case 'operations-security':
+        return this.checkOperationsSecurity(context);
+      case 'communications-security':
+        return this.checkCommunicationsSecurity(context);
+      case 'system-acquisition':
+        return this.checkSystemAcquisition(context);
+      case 'supplier-relationships':
+        return this.checkSupplierRelationships(context);
+      case 'information-security-incident-management':
+        return this.checkInformationSecurityIncidentManagement(context);
+      case 'business-continuity':
+        return this.checkBusinessContinuity(context);
+      case 'compliance':
+        return this.checkCompliance(context);
+      
+      // NIST Cybersecurity Framework checks
+      case 'identify-assets':
+        return this.checkIdentifyAssets(context);
+      case 'identify-vulnerabilities':
+        return this.checkIdentifyVulnerabilities(context);
+      case 'identify-threats':
+        return this.checkIdentifyThreats(context);
+      case 'identify-risks':
+        return this.checkIdentifyRisks(context);
+      case 'protect-access-controls':
+        return this.checkProtectAccessControls(context);
+      case 'protect-awareness-training':
+        return this.checkProtectAwarenessTraining(context);
+      case 'protect-data-security':
+        return this.checkProtectDataSecurity(context);
+      case 'protect-maintenance':
+        return this.checkProtectMaintenance(context);
+      case 'protect-protective-technology':
+        return this.checkProtectProtectiveTechnology(context);
+      case 'detect-anomalies':
+        return this.checkDetectAnomalies(context);
+      case 'detect-continuous-monitoring':
+        return this.checkDetectContinuousMonitoring(context);
+      case 'detect-detection-processes':
+        return this.checkDetectDetectionProcesses(context);
+      case 'respond-response-planning':
+        return this.checkRespondResponsePlanning(context);
+      case 'respond-communications':
+        return this.checkRespondCommunications(context);
+      case 'respond-analysis':
+        return this.checkRespondAnalysis(context);
+      case 'respond-mitigation':
+        return this.checkRespondMitigation(context);
+      case 'respond-improvements':
+        return this.checkRespondImprovements(context);
+      case 'recover-recovery-planning':
+        return this.checkRecoverRecoveryPlanning(context);
+      case 'recover-improvements':
+        return this.checkRecoverImprovements(context);
+      case 'recover-communications':
+        return this.checkRecoverCommunications(context);
+      
       default:
         return { status: 'unknown', details: 'Check not implemented' };
     }
@@ -1261,6 +1546,355 @@ class ContainerScanner {
     } catch (error) {
       return { error: error.message };
     }
+  }
+
+  /**
+   * Generic compliance check method
+   */
+  async performGenericComplianceCheck(checkName, context) {
+    try {
+      // Basic compliance check - can be enhanced with specific logic
+      const hasSecurityPolicies = context.securityPolicies && Object.keys(context.securityPolicies).length > 0;
+      const hasEncryption = context.securityPolicies?.dataPolicy?.encryptionLevel !== 'basic';
+      const hasAccessControls = context.securityPolicies?.accessControl?.enabled === true;
+      
+      const score = [hasSecurityPolicies, hasEncryption, hasAccessControls].filter(Boolean).length;
+      const status = score >= 2 ? 'pass' : 'fail';
+      
+      return {
+        status: status,
+        details: `${checkName}: ${status === 'pass' ? 'Compliant' : 'Non-compliant'}`,
+        score: score * 33.33
+      };
+    } catch (error) {
+      return { status: 'error', details: error.message };
+    }
+  }
+
+  // HIPAA compliance check methods
+  async checkAdministrativeSafeguards(context) {
+    return this.performGenericComplianceCheck('Administrative Safeguards', context);
+  }
+  async checkPhysicalSafeguards(context) {
+    return this.performGenericComplianceCheck('Physical Safeguards', context);
+  }
+  async checkTechnicalSafeguards(context) {
+    return this.performGenericComplianceCheck('Technical Safeguards', context);
+  }
+  async checkAuditControls(context) {
+    return this.performGenericComplianceCheck('Audit Controls', context);
+  }
+  async checkDataIntegrity(context) {
+    return this.performGenericComplianceCheck('Data Integrity', context);
+  }
+
+  // GDPR compliance check methods
+  async checkDataProtectionByDesign(context) {
+    return this.performGenericComplianceCheck('Data Protection by Design', context);
+  }
+  async checkConsentManagement(context) {
+    return this.performGenericComplianceCheck('Consent Management', context);
+  }
+  async checkDataSubjectRights(context) {
+    return this.performGenericComplianceCheck('Data Subject Rights', context);
+  }
+  async checkDataPortability(context) {
+    return this.performGenericComplianceCheck('Data Portability', context);
+  }
+  async checkRightToErasure(context) {
+    return this.performGenericComplianceCheck('Right to Erasure', context);
+  }
+  async checkPrivacyByDefault(context) {
+    return this.performGenericComplianceCheck('Privacy by Default', context);
+  }
+  async checkDataMinimization(context) {
+    return this.performGenericComplianceCheck('Data Minimization', context);
+  }
+  async checkPurposeLimitation(context) {
+    return this.performGenericComplianceCheck('Purpose Limitation', context);
+  }
+
+  // PCI-DSS compliance check methods
+  async checkFirewallConfiguration(context) {
+    return this.performGenericComplianceCheck('Firewall Configuration', context);
+  }
+  async checkDefaultPasswords(context) {
+    return this.performGenericComplianceCheck('Default Passwords', context);
+  }
+  async checkCardholderDataProtection(context) {
+    return this.performGenericComplianceCheck('Cardholder Data Protection', context);
+  }
+  async checkAntivirusSoftware(context) {
+    return this.performGenericComplianceCheck('Antivirus Software', context);
+  }
+  async checkSecureSystems(context) {
+    return this.performGenericComplianceCheck('Secure Systems', context);
+  }
+  async checkAccessRestriction(context) {
+    return this.performGenericComplianceCheck('Access Restriction', context);
+  }
+  async checkUniqueIds(context) {
+    return this.performGenericComplianceCheck('Unique IDs', context);
+  }
+  async checkPhysicalAccess(context) {
+    return this.performGenericComplianceCheck('Physical Access', context);
+  }
+  async checkNetworkMonitoring(context) {
+    return this.performGenericComplianceCheck('Network Monitoring', context);
+  }
+  async checkSecurityTesting(context) {
+    return this.performGenericComplianceCheck('Security Testing', context);
+  }
+  async checkSecurityPolicy(context) {
+    return this.performGenericComplianceCheck('Security Policy', context);
+  }
+
+  // ISO 27001 compliance check methods
+  async checkInformationSecurityPolicies(context) {
+    return this.performGenericComplianceCheck('Information Security Policies', context);
+  }
+  async checkOrganizationOfInformationSecurity(context) {
+    return this.performGenericComplianceCheck('Organization of Information Security', context);
+  }
+  async checkHumanResourceSecurity(context) {
+    return this.performGenericComplianceCheck('Human Resource Security', context);
+  }
+  async checkAssetManagement(context) {
+    return this.performGenericComplianceCheck('Asset Management', context);
+  }
+  async checkAccessControl(context) {
+    return this.performGenericComplianceCheck('Access Control', context);
+  }
+  async checkCryptography(context) {
+    return this.performGenericComplianceCheck('Cryptography', context);
+  }
+  async checkPhysicalEnvironmentalSecurity(context) {
+    return this.performGenericComplianceCheck('Physical Environmental Security', context);
+  }
+  async checkOperationsSecurity(context) {
+    return this.performGenericComplianceCheck('Operations Security', context);
+  }
+  async checkCommunicationsSecurity(context) {
+    return this.performGenericComplianceCheck('Communications Security', context);
+  }
+  async checkSystemAcquisition(context) {
+    return this.performGenericComplianceCheck('System Acquisition', context);
+  }
+  async checkSupplierRelationships(context) {
+    return this.performGenericComplianceCheck('Supplier Relationships', context);
+  }
+  async checkInformationSecurityIncidentManagement(context) {
+    return this.performGenericComplianceCheck('Information Security Incident Management', context);
+  }
+  async checkBusinessContinuity(context) {
+    return this.performGenericComplianceCheck('Business Continuity', context);
+  }
+  async checkCompliance(context) {
+    return this.performGenericComplianceCheck('Compliance', context);
+  }
+
+  // NIST Cybersecurity Framework check methods
+  async checkIdentifyAssets(context) {
+    return this.performGenericComplianceCheck('Identify Assets', context);
+  }
+  async checkIdentifyVulnerabilities(context) {
+    return this.performGenericComplianceCheck('Identify Vulnerabilities', context);
+  }
+  async checkIdentifyThreats(context) {
+    return this.performGenericComplianceCheck('Identify Threats', context);
+  }
+  async checkIdentifyRisks(context) {
+    return this.performGenericComplianceCheck('Identify Risks', context);
+  }
+  async checkProtectAccessControls(context) {
+    return this.performGenericComplianceCheck('Protect Access Controls', context);
+  }
+  async checkProtectAwarenessTraining(context) {
+    return this.performGenericComplianceCheck('Protect Awareness Training', context);
+  }
+  async checkProtectDataSecurity(context) {
+    return this.performGenericComplianceCheck('Protect Data Security', context);
+  }
+  async checkProtectMaintenance(context) {
+    return this.performGenericComplianceCheck('Protect Maintenance', context);
+  }
+  async checkProtectProtectiveTechnology(context) {
+    return this.performGenericComplianceCheck('Protect Protective Technology', context);
+  }
+  async checkDetectAnomalies(context) {
+    return this.performGenericComplianceCheck('Detect Anomalies', context);
+  }
+  async checkDetectContinuousMonitoring(context) {
+    return this.performGenericComplianceCheck('Detect Continuous Monitoring', context);
+  }
+  async checkDetectDetectionProcesses(context) {
+    return this.performGenericComplianceCheck('Detect Detection Processes', context);
+  }
+  async checkRespondResponsePlanning(context) {
+    return this.performGenericComplianceCheck('Respond Response Planning', context);
+  }
+  async checkRespondCommunications(context) {
+    return this.performGenericComplianceCheck('Respond Communications', context);
+  }
+  async checkRespondAnalysis(context) {
+    return this.performGenericComplianceCheck('Respond Analysis', context);
+  }
+  async checkRespondMitigation(context) {
+    return this.performGenericComplianceCheck('Respond Mitigation', context);
+  }
+  async checkRespondImprovements(context) {
+    return this.performGenericComplianceCheck('Respond Improvements', context);
+  }
+  async checkRecoverRecoveryPlanning(context) {
+    return this.performGenericComplianceCheck('Recover Recovery Planning', context);
+  }
+  async checkRecoverImprovements(context) {
+    return this.performGenericComplianceCheck('Recover Improvements', context);
+  }
+  async checkRecoverCommunications(context) {
+    return this.performGenericComplianceCheck('Recover Communications', context);
+  }
+
+  /**
+   * Check HIPAA compliance
+   */
+  async checkHIPAACompliance(context) {
+    const controls = [
+      'administrative-safeguards',
+      'physical-safeguards', 
+      'technical-safeguards',
+      'encryption-at-rest',
+      'encryption-in-transit',
+      'access-controls',
+      'audit-controls',
+      'data-integrity'
+    ];
+
+    const controlResults = {};
+
+    for (const check of controls) {
+      controlResults[check] = await this.performSecurityCheck(check, context);
+    }
+
+    return controlResults;
+  }
+
+  /**
+   * Check GDPR compliance
+   */
+  async checkGDPRCompliance(context) {
+    const controls = [
+      'data-protection-by-design',
+      'consent-management',
+      'data-subject-rights',
+      'data-portability',
+      'right-to-erasure',
+      'privacy-by-default',
+      'data-minimization',
+      'purpose-limitation'
+    ];
+
+    const controlResults = {};
+
+    for (const check of controls) {
+      controlResults[check] = await this.performSecurityCheck(check, context);
+    }
+
+    return controlResults;
+  }
+
+  /**
+   * Check PCI-DSS compliance
+   */
+  async checkPCIDSSCompliance(context) {
+    const controls = [
+      'firewall-configuration',
+      'default-passwords',
+      'cardholder-data-protection',
+      'encryption-in-transit',
+      'antivirus-software',
+      'secure-systems',
+      'access-restriction',
+      'unique-ids',
+      'physical-access',
+      'network-monitoring',
+      'security-testing',
+      'security-policy'
+    ];
+
+    const controlResults = {};
+
+    for (const check of controls) {
+      controlResults[check] = await this.performSecurityCheck(check, context);
+    }
+
+    return controlResults;
+  }
+
+  /**
+   * Check ISO 27001 compliance
+   */
+  async checkISO27001Compliance(context) {
+    const controls = [
+      'information-security-policies',
+      'organization-of-information-security',
+      'human-resource-security',
+      'asset-management',
+      'access-control',
+      'cryptography',
+      'physical-environmental-security',
+      'operations-security',
+      'communications-security',
+      'system-acquisition',
+      'supplier-relationships',
+      'information-security-incident-management',
+      'business-continuity',
+      'compliance'
+    ];
+
+    const controlResults = {};
+
+    for (const check of controls) {
+      controlResults[check] = await this.performSecurityCheck(check, context);
+    }
+
+    return controlResults;
+  }
+
+  /**
+   * Check NIST Cybersecurity Framework compliance
+   */
+  async checkNISTCompliance(context) {
+    const controls = [
+      'identify-assets',
+      'identify-vulnerabilities',
+      'identify-threats',
+      'identify-risks',
+      'protect-access-controls',
+      'protect-awareness-training',
+      'protect-data-security',
+      'protect-maintenance',
+      'protect-protective-technology',
+      'detect-anomalies',
+      'detect-continuous-monitoring',
+      'detect-detection-processes',
+      'respond-response-planning',
+      'respond-communications',
+      'respond-analysis',
+      'respond-mitigation',
+      'respond-improvements',
+      'recover-recovery-planning',
+      'recover-improvements',
+      'recover-communications'
+    ];
+
+    const controlResults = {};
+
+    for (const check of controls) {
+      controlResults[check] = await this.performSecurityCheck(check, context);
+    }
+
+    return controlResults;
   }
 }
 

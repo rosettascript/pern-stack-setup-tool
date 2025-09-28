@@ -36,6 +36,7 @@ class PluginManager {
         type: 'list',
         name: 'pluginChoice',
         message: 'Plugin Management:',
+        loop: false,
         choices: [
           '1. List installed plugins',
           '2. Install new plugin',
@@ -244,6 +245,7 @@ class PluginManager {
         type: 'list',
         name: 'pluginChoice',
         message: 'Select plugin to install:',
+        loop: false,
         choices: [...choices, 'Enter plugin name manually', 'Go back']
       });
 
@@ -428,7 +430,8 @@ class PluginManager {
           type: 'list',
           name: 'choice',
           message: 'Select plugin to remove:',
-          choices: [...plugins, 'Go back']
+          loop: false,
+        choices: [...plugins, 'Go back']
         });
 
         if (choice === 'Go back') {
@@ -491,6 +494,7 @@ class PluginManager {
         type: 'list',
         name: 'categoryChoice',
         message: 'Select plugin category:',
+        loop: false,
         choices: [...categories.map(c => c.name), 'View all plugins', 'Go back']
       });
 
@@ -511,6 +515,7 @@ class PluginManager {
         type: 'list',
         name: 'pluginChoice',
         message: 'Select plugin to view details:',
+        loop: false,
         choices: [...choices, 'Go back']
       });
 
@@ -548,7 +553,8 @@ class PluginManager {
       type: 'list',
       name: 'action',
       message: 'What would you like to do?',
-      choices: [
+      loop: false,
+        choices: [
         '1. Install this plugin',
         '2. View more details',
         '3. Go back to marketplace',

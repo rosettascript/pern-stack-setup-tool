@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ora = require('ora');
 
 /**
  * PostgreSQL Manager Class
@@ -32,7 +33,8 @@ class PostgreSQLManager {
           type: 'list',
           name: 'choice',
           message: 'PostgreSQL Section',
-          choices: [
+          loop: false,
+        choices: [
             '1. Download PostgreSQL',
             '2. Setup PostgreSQL',
             '3. Go back'
@@ -63,26 +65,52 @@ class PostgreSQLManager {
    */
   async download() {
     try {
-      await this.setup.safety.safeExecute('postgresql-download', {}, async () => {
+      await this.setup.safety.safeExecute('postgresql-download', {
+        version: '15.0',
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Starting PostgreSQL download and installation...');
+        console.log('📝 This may take a few minutes depending on your internet connection');
+        
         if (this.platform === 'linux') {
+          console.log('🐧 Installing PostgreSQL on Linux...');
+          
+          const updateSpinner = ora('📦 Updating package lists...').start();
           await exec('sudo apt update');
+          updateSpinner.succeed('✅ Package lists updated');
+          
+          const installSpinner = ora('📦 Installing PostgreSQL and contrib packages...').start();
+          console.log('⏳ This may take 2-5 minutes...');
           await exec('sudo apt install -y postgresql postgresql-contrib');
+          installSpinner.succeed('✅ PostgreSQL installation completed on Linux');
         } else if (this.platform === 'darwin') {
+          console.log('🍎 Installing PostgreSQL on macOS...');
+          
+          const brewSpinner = ora('📦 Using Homebrew to install PostgreSQL...').start();
+          console.log('⏳ This may take 3-7 minutes...');
           await exec('brew install postgresql');
+          brewSpinner.succeed('✅ PostgreSQL installation completed on macOS');
         } else if (this.platform === 'win32') {
+          console.log('🪟 Windows detected - manual installation required');
           console.log('📥 Download PostgreSQL from: https://postgresql.org/download/windows/');
-          console.log('Run the installer and follow the setup wizard');
+          console.log('📝 Run the installer and follow the setup wizard');
+          console.log('💡 Make sure to remember the postgres user password you set during installation');
         }
 
         this.setup.state.completedComponents.add('postgresql');
         console.log('✅ PostgreSQL downloaded successfully');
+        
+        return {
+          success: true,
+          version: '15.0',
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
       await this.setup.handleError('postgresql-download', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -95,7 +123,8 @@ class PostgreSQLManager {
           type: 'list',
           name: 'choice',
           message: 'Select setup type:',
-          choices: [
+          loop: false,
+        choices: [
             '1. Automatic setup',
             '2. Manual setup',
             '3. Go back'
@@ -127,26 +156,34 @@ class PostgreSQLManager {
   async automaticSetup() {
     try {
       await this.setup.safety.safeExecute('postgresql-automatic-setup', {
-        backup: true,
-        targetPath: '/etc/postgresql'
+        version: '15.0',
+        port: 5432,
+        username: 'postgres',
+        database: 'postgres',
+        password: 'postgres'
       }, async () => {
-        console.log('Setting up PostgreSQL automatically...');
-        console.log('The script will auto generate:');
+        console.log('🔧 Setting up PostgreSQL automatically...');
+        console.log('📝 The script will auto generate:');
         console.log('- Creates User: postgres');
         console.log('- Creates Database: postgres');
         console.log('- Sets User password: 1234');
+        console.log('📝 You may be prompted for the postgres user password (this is normal)');
+        console.log('💡 The postgres user password is the system PostgreSQL admin password, not your application password');
 
         if (this.platform === 'linux') {
-          // Create user
+          console.log('🔐 Executing database setup commands...');
+          
+          // Execute commands separately to avoid transaction block issues
+          console.log('👤 Creating user...');
           await exec('sudo -u postgres psql -c "CREATE USER postgres;" 2>/dev/null || true');
-
-          // Create database
+          
+          console.log('🗄️ Creating database...');
           await exec('sudo -u postgres psql -c "CREATE DATABASE postgres;" 2>/dev/null || true');
-
-          // Set password
+          
+          console.log('🔑 Setting user password...');
           await exec('sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD \'1234\';"');
-
-          // Grant privileges
+          
+          console.log('🔐 Granting privileges...');
           await exec('sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE postgres TO postgres;"');
 
           // Start service
@@ -167,6 +204,15 @@ class PostgreSQLManager {
 
         this.setup.state.completedComponents.add('postgresql');
         console.log('✅ PostgreSQL setup completed successfully');
+        
+        return {
+          success: true,
+          username: 'postgres',
+          database: 'postgres',
+          version: '15.0',
+          port: 5432,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
@@ -191,8 +237,8 @@ class PostgreSQLManager {
       const { password } = await inquirer.prompt({
         type: 'password',
         name: 'password',
-        message: 'Enter User password:',
-        validate: input => input.length >= 4 || 'Password must be at least 4 characters'
+        message: 'Enter User password (minimum 8 characters):',
+        validate: input => input.length >= 8 || 'Password must be at least 8 characters for security'
       });
 
       const { dbName } = await inquirer.prompt({
@@ -203,21 +249,30 @@ class PostgreSQLManager {
       });
 
       await this.setup.safety.safeExecute('postgresql-manual-setup', {
+        version: '15.0',
+        port: 5432,
         username,
-        password,
-        dbName
+        database: dbName,
+        password
       }, async () => {
         if (this.platform === 'linux') {
-          // Create user
+          console.log('🔧 Setting up PostgreSQL database...');
+          console.log('📝 You may be prompted for the postgres user password (this is normal)');
+          console.log('💡 The postgres user password is the system PostgreSQL admin password, not your application password');
+          
+          console.log('🔐 Executing database setup commands...');
+          
+          // Execute commands separately to avoid transaction block issues
+          console.log('👤 Creating user...');
           await exec(`sudo -u postgres psql -c "CREATE USER ${username};"`);
-
-          // Set password
-          await exec(`sudo -u postgres psql -c "ALTER USER ${username} WITH PASSWORD '${password}';"`, {});
-
-          // Create database
+          
+          console.log('🔑 Setting user password...');
+          await exec(`sudo -u postgres psql -c "ALTER USER ${username} WITH PASSWORD '${password}';"`);
+          
+          console.log('🗄️ Creating database...');
           await exec(`sudo -u postgres psql -c "CREATE DATABASE ${dbName};"`);
-
-          // Grant privileges
+          
+          console.log('🔐 Granting privileges...');
           await exec(`sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${dbName} TO ${username};"`);
         }
 
@@ -228,6 +283,15 @@ class PostgreSQLManager {
 
         this.setup.state.completedComponents.add('postgresql');
         console.log('✅ PostgreSQL manual setup completed');
+        
+        return {
+          success: true,
+          username,
+          database: dbName,
+          version: '15.0',
+          port: 5432,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {

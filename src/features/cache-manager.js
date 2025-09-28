@@ -7,6 +7,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const inquirer = require('inquirer');
 
 /**
  * Cache Manager Class
@@ -346,7 +347,7 @@ class CacheManager {
    */
   async configure() {
     try {
-      const { cacheSettings } = await inquirer.prompt([
+      const cacheSettings = await inquirer.prompt([
         {
           type: 'confirm',
           name: 'enableCache',

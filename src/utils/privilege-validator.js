@@ -376,6 +376,19 @@ class PrivilegeValidator {
    * Check if operation requires sudo
    */
   requiresSudo(operation) {
+    // Exclude dependency installation operations from sudo requirements
+    const dependencyOperations = [
+      'client-deps-install',
+      'server-deps-install',
+      'template-deps-install',
+      'deps-install'
+    ];
+
+    // If it's a dependency operation, don't require sudo
+    if (dependencyOperations.includes(operation)) {
+      return false;
+    }
+
     const sudoOperations = [
       'install',
       'systemctl',
@@ -454,11 +467,25 @@ class PrivilegeValidator {
    */
   getPrivilegeRequirements(operation) {
     const requirements = {
-      postgresql: ['filesystem', 'network'],
-      redis: ['filesystem', 'network'],
-      docker: ['docker', 'filesystem'],
-      nginx: ['sudo', 'filesystem', 'network'],
-      pm2: ['filesystem', 'network'],
+      // Specific dependency operations first (most specific)
+      'client-deps-install': ['filesystem'], // Client dependencies only need filesystem access
+      'server-deps-install': ['filesystem'], // Server dependencies only need filesystem access
+      'template-deps-install': ['filesystem'], // Template dependencies only need filesystem access
+      'deps-install': ['filesystem'], // General dependencies only need filesystem access
+      // Security operations
+      'security-scan': ['filesystem'],
+      'security-policies': ['filesystem'],
+      'vulnerability-monitoring': ['filesystem'],
+      'security-report': ['filesystem'],
+      'compliance-check': ['filesystem'],
+      // Other specific operations
+      postgresql: ['filesystem'],
+      redis: ['filesystem'],
+      docker: ['filesystem'], // Changed from ['docker', 'filesystem'] to allow sudo usage
+      nginx: ['sudo', 'filesystem'], // Changed from ['sudo', 'filesystem', 'network'] to allow local installation
+      pm2: ['filesystem'], // Changed from ['filesystem', 'network'] to allow local npm install
+      template: ['filesystem'], // Template operations need filesystem access
+      // General operations last (least specific)
       system: ['sudo'],
       install: ['sudo'],
       network: ['network'],

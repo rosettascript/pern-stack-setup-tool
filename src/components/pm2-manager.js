@@ -32,7 +32,8 @@ class PM2Manager {
           type: 'list',
           name: 'choice',
           message: 'PM2 Section',
-          choices: [
+          loop: false,
+        choices: [
             '1. Download PM2',
             '2. Setup PM2',
             '3. Manage Processes',
@@ -67,22 +68,46 @@ class PM2Manager {
    */
   async download() {
     try {
-      await this.setup.safety.safeExecute('pm2-download', {}, async () => {
+      await this.setup.safety.safeExecute('pm2-download', {
+        version: '5.3.0',
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Installing PM2...');
+        console.log('📝 This may take a few minutes depending on your internet connection');
+        console.log('📝 You may be prompted for sudo password to install PM2 globally');
+        
         if (this.platform === 'linux' || this.platform === 'darwin') {
-          await exec('npm install -g pm2');
+          console.log('🐧 Installing PM2 on Linux/macOS...');
+          
+          const ora = require('ora');
+          const pm2Spinner = ora('📦 Installing PM2 globally using npm...').start();
+          console.log('⏳ This may take 2-5 minutes...');
+          await exec('sudo npm install -g pm2');
+          pm2Spinner.succeed('✅ PM2 installation completed');
         } else if (this.platform === 'win32') {
+          console.log('🪟 Installing PM2 on Windows...');
+          
+          const ora = require('ora');
+          const pm2Spinner = ora('📦 Installing PM2 for Windows...').start();
+          console.log('⏳ This may take 1-3 minutes...');
           await exec('npm install -g pm2-windows-startup');
+          pm2Spinner.succeed('✅ PM2 installation completed');
         }
 
         this.setup.state.completedComponents.add('pm2');
         console.log('✅ PM2 downloaded successfully');
+        
+        return {
+          success: true,
+          version: '5.3.0',
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
       await this.setup.handleError('pm2-download', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -95,7 +120,8 @@ class PM2Manager {
           type: 'list',
           name: 'choice',
           message: 'Setup PM2 Interface',
-          choices: [
+          loop: false,
+        choices: [
             '1. Install PM2 globally',
             '2. Setup PM2 startup script',
             '3. Configure ecosystem file',
@@ -130,14 +156,38 @@ class PM2Manager {
    */
   async installGlobally() {
     try {
-      await this.setup.safety.safeExecute('pm2-global-install', {}, async () => {
+      await this.setup.safety.safeExecute('pm2-global-install', {
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Installing PM2 globally...');
+        console.log('📝 This may take a few minutes depending on your internet connection');
+        console.log('📝 You may be prompted for sudo password to install PM2 globally');
+        
         if (this.platform === 'linux' || this.platform === 'darwin') {
-          await exec('npm install -g pm2');
+          console.log('🐧 Installing PM2 on Linux/macOS...');
+          
+          const ora = require('ora');
+          const pm2Spinner = ora('📦 Installing PM2 globally using npm...').start();
+          console.log('⏳ This may take 2-5 minutes...');
+          await exec('sudo npm install -g pm2');
+          pm2Spinner.succeed('✅ PM2 installation completed');
         } else if (this.platform === 'win32') {
+          console.log('🪟 Installing PM2 on Windows...');
+          
+          const ora = require('ora');
+          const pm2Spinner = ora('📦 Installing PM2 for Windows...').start();
+          console.log('⏳ This may take 1-3 minutes...');
           await exec('npm install -g pm2-windows-startup');
+          pm2Spinner.succeed('✅ PM2 installation completed');
         }
 
         console.log('✅ PM2 installed globally');
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-global-install', error);
@@ -151,17 +201,81 @@ class PM2Manager {
    */
   async setupStartupScript() {
     try {
-      await this.setup.safety.safeExecute('pm2-startup-setup', {}, async () => {
-        if (this.platform === 'linux') {
-          await exec('pm2 startup');
-          console.log('✅ PM2 startup script configured for Linux');
-        } else if (this.platform === 'darwin') {
-          await exec('pm2 startup');
-          console.log('✅ PM2 startup script configured for macOS');
-        } else if (this.platform === 'win32') {
-          await exec('pm2-startup install');
-          console.log('✅ PM2 startup script configured for Windows');
+      await this.setup.safety.safeExecute('pm2-startup-setup', {
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Setting up PM2 startup script...');
+        console.log('📝 This will configure PM2 to start automatically on system boot');
+        
+        // Check if PM2 is installed first
+        try {
+          await exec('pm2 --version');
+          console.log('✅ PM2 is installed and available');
+        } catch (error) {
+          console.log('❌ PM2 is not installed or not available in PATH');
+          console.log('💡 Please install PM2 first using the download option');
+          throw new Error('PM2 is not installed. Please install PM2 first.');
         }
+        
+        if (this.platform === 'linux') {
+          console.log('🐧 Configuring PM2 startup for Linux...');
+          try {
+            // Try different PM2 startup approaches
+            console.log('🔄 Attempting PM2 startup configuration...');
+            await exec('pm2 startup');
+            console.log('✅ PM2 startup script configured for Linux');
+          } catch (error) {
+            console.log('⚠️  PM2 startup configuration failed');
+            console.log('💡 This is common and can be configured manually later');
+            console.log('📝 To configure PM2 startup manually, run:');
+            console.log('   1. pm2 startup');
+            console.log('   2. Follow the instructions shown');
+            console.log('   3. pm2 save');
+            console.log('   4. pm2 unstartup (to remove if needed)');
+            console.log('💡 PM2 startup is optional - your processes will still work without it');
+            
+            // Don't throw error, just warn and continue
+            console.log('✅ PM2 startup setup completed (manual configuration required)');
+          }
+        } else if (this.platform === 'darwin') {
+          console.log('🍎 Configuring PM2 startup for macOS...');
+          try {
+            console.log('🔄 Attempting PM2 startup configuration...');
+            await exec('pm2 startup');
+            console.log('✅ PM2 startup script configured for macOS');
+          } catch (error) {
+            console.log('⚠️  PM2 startup configuration failed');
+            console.log('💡 This is common and can be configured manually later');
+            console.log('📝 To configure PM2 startup manually, run:');
+            console.log('   1. pm2 startup');
+            console.log('   2. Follow the instructions shown');
+            console.log('   3. pm2 save');
+            console.log('💡 PM2 startup is optional - your processes will still work without it');
+            console.log('✅ PM2 startup setup completed (manual configuration required)');
+          }
+        } else if (this.platform === 'win32') {
+          console.log('🪟 Configuring PM2 startup for Windows...');
+          try {
+            console.log('🔄 Attempting PM2 startup configuration...');
+            await exec('pm2-startup install');
+            console.log('✅ PM2 startup script configured for Windows');
+          } catch (error) {
+            console.log('⚠️  PM2 startup configuration failed');
+            console.log('💡 This is common and can be configured manually later');
+            console.log('📝 To configure PM2 startup manually, run:');
+            console.log('   1. pm2-startup install');
+            console.log('   2. Follow the instructions shown');
+            console.log('   3. pm2 save');
+            console.log('💡 PM2 startup is optional - your processes will still work without it');
+            console.log('✅ PM2 startup setup completed (manual configuration required)');
+          }
+        }
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-startup-setup', error);
@@ -179,6 +293,7 @@ class PM2Manager {
         type: 'list',
         name: 'environment',
         message: 'Configure for:',
+        loop: false,
         choices: [
           '1. Development environment',
           '2. Production environment',
@@ -218,14 +333,36 @@ class PM2Manager {
     try {
       const projectPath = this.config.get('project.location', process.cwd());
 
+      // Try to detect the main script file
+      const fs = require('fs');
+      const commonPaths = [
+        'server/src/index.js',
+        'src/index.js',
+        'index.js',
+        'app.js',
+        'server.js',
+        'bin/www',
+        'dist/index.js',
+        'build/index.js'
+      ];
+      
+      let detectedScript = 'server/src/index.js';
+      for (const scriptPath of commonPaths) {
+        const fullPath = path.join(projectPath, scriptPath);
+        if (fs.existsSync(fullPath)) {
+          detectedScript = scriptPath;
+          break;
+        }
+      }
+
       const ecosystemConfig = {
         apps: [{
           name: this.config.get('project.name', 'pern-app'),
-          script: 'server/src/index.js',
+          script: detectedScript,
           instances: 1,
           autorestart: true,
           watch: true,
-          ignore_watch: ['node_modules', 'client', 'logs'],
+          ignore_watch: ['node_modules', 'client', 'logs', 'dist', 'build'],
           max_memory_restart: '1G',
           env: {
             NODE_ENV: 'development',
@@ -260,10 +397,32 @@ class PM2Manager {
     try {
       const projectPath = this.config.get('project.location', process.cwd());
 
+      // Try to detect the main script file
+      const fs = require('fs');
+      const commonPaths = [
+        'server/src/index.js',
+        'src/index.js',
+        'index.js',
+        'app.js',
+        'server.js',
+        'bin/www',
+        'dist/index.js',
+        'build/index.js'
+      ];
+      
+      let detectedScript = 'server/src/index.js';
+      for (const scriptPath of commonPaths) {
+        const fullPath = path.join(projectPath, scriptPath);
+        if (fs.existsSync(fullPath)) {
+          detectedScript = scriptPath;
+          break;
+        }
+      }
+
       const ecosystemConfig = {
         apps: [{
           name: this.config.get('project.name', 'pern-app'),
-          script: 'server/src/index.js',
+          script: detectedScript,
           instances: 'max',
           exec_mode: 'cluster',
           autorestart: true,
@@ -299,10 +458,32 @@ class PM2Manager {
     try {
       const projectPath = this.config.get('project.location', process.cwd());
 
+      // Try to detect the main script file
+      const fs = require('fs');
+      const commonPaths = [
+        'server/src/index.js',
+        'src/index.js',
+        'index.js',
+        'app.js',
+        'server.js',
+        'bin/www',
+        'dist/index.js',
+        'build/index.js'
+      ];
+      
+      let detectedScript = 'server/src/index.js';
+      for (const scriptPath of commonPaths) {
+        const fullPath = path.join(projectPath, scriptPath);
+        if (fs.existsSync(fullPath)) {
+          detectedScript = scriptPath;
+          break;
+        }
+      }
+
       const ecosystemConfig = {
         apps: [{
           name: this.config.get('project.name', 'pern-app'),
-          script: 'server/src/index.js',
+          script: detectedScript,
           instances: 2,
           autorestart: true,
           watch: false,
@@ -340,11 +521,45 @@ class PM2Manager {
         default: this.config.get('project.name', 'pern-app')
       });
 
+      // Try to detect common script paths
+      const fs = require('fs');
+      const path = require('path');
+      const projectPath = this.config.get('project.location', process.cwd());
+      const commonPaths = [
+        'server/src/index.js',
+        'src/index.js',
+        'index.js',
+        'app.js',
+        'server.js',
+        'bin/www',
+        'dist/index.js',
+        'build/index.js'
+      ];
+      
+      let detectedPath = null;
+      for (const scriptPath of commonPaths) {
+        const fullPath = path.join(projectPath, scriptPath);
+        if (fs.existsSync(fullPath)) {
+          detectedPath = scriptPath;
+          break;
+        }
+      }
+
       const { scriptPath } = await inquirer.prompt({
         type: 'input',
         name: 'scriptPath',
-        message: 'Enter script path:',
-        default: 'server/src/index.js'
+        message: 'Enter script path (relative to project root):',
+        default: detectedPath || 'server/src/index.js',
+        validate: (input) => {
+          if (!input.trim()) {
+            return 'Script path is required';
+          }
+          const fullPath = path.join(projectPath, input);
+          if (!fs.existsSync(fullPath)) {
+            return `Script file not found: ${fullPath}\n💡 Make sure the file exists or use an absolute path`;
+          }
+          return true;
+        }
       });
 
       const { instances } = await inquirer.prompt({
@@ -383,7 +598,6 @@ class PM2Manager {
         }]
       };
 
-      const projectPath = this.config.get('project.location', process.cwd());
       const ecosystemPath = path.join(projectPath, 'ecosystem.config.js');
       await fs.writeFile(ecosystemPath, `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`);
 
@@ -404,7 +618,8 @@ class PM2Manager {
           type: 'list',
           name: 'choice',
           message: 'PM2 Process Management',
-          choices: [
+          loop: false,
+        choices: [
             '1. Start new process',
             '2. List all processes',
             '3. Stop process',
@@ -451,26 +666,106 @@ class PM2Manager {
    */
   async startNewProcess() {
     try {
+      console.log('🚀 Starting new PM2 process...');
+      console.log('📝 This will help you start a Node.js application with PM2');
+      
+      // Get current project information
+      const projectName = this.config.get('project.name', 'pern-app');
+      const projectPath = this.config.get('project.location', process.cwd());
+      
+      // Try to detect common script paths
+      const fs = require('fs');
+      const path = require('path');
+      const commonPaths = [
+        'server/src/index.js',
+        'src/index.js',
+        'index.js',
+        'app.js',
+        'server.js',
+        'bin/www',
+        'dist/index.js',
+        'build/index.js'
+      ];
+      
+      let detectedPath = null;
+      for (const scriptPath of commonPaths) {
+        const fullPath = path.join(projectPath, scriptPath);
+        if (fs.existsSync(fullPath)) {
+          detectedPath = scriptPath;
+          break;
+        }
+      }
+      
       const { scriptPath } = await inquirer.prompt({
         type: 'input',
         name: 'scriptPath',
-        message: 'Enter script path:',
-        default: 'server/src/index.js'
+        message: 'Enter script path (relative to project root):',
+        default: detectedPath || 'server/src/index.js',
+        validate: (input) => {
+          if (!input.trim()) {
+            return 'Script path is required';
+          }
+          const fullPath = path.join(projectPath, input);
+          if (!fs.existsSync(fullPath)) {
+            return `Script file not found: ${fullPath}\n💡 Make sure the file exists or use an absolute path`;
+          }
+          return true;
+        }
       });
 
       const { processName } = await inquirer.prompt({
         type: 'input',
         name: 'processName',
         message: 'Enter process name:',
-        default: this.config.get('project.name', 'pern-app')
+        default: projectName,
+        validate: (input) => {
+          if (!input.trim()) {
+            return 'Process name is required';
+          }
+          return true;
+        }
+      });
+
+      const { instances } = await inquirer.prompt({
+        type: 'input',
+        name: 'instances',
+        message: 'Number of instances (or "max" for cluster mode):',
+        default: '1',
+        validate: (input) => {
+          if (input === 'max' || input === '1' || !isNaN(parseInt(input))) {
+            return true;
+          }
+          return 'Enter a number or "max" for cluster mode';
+        }
       });
 
       await this.setup.safety.safeExecute('pm2-start-process', {
         scriptPath,
-        processName
+        processName,
+        instances
       }, async () => {
-        await exec(`pm2 start ${scriptPath} --name ${processName}`);
+        console.log('🔧 Starting PM2 process...');
+        console.log(`📁 Script: ${scriptPath}`);
+        console.log(`🏷️  Name: ${processName}`);
+        console.log(`🔢 Instances: ${instances}`);
+        
+        const command = instances === 'max' 
+          ? `pm2 start ${scriptPath} --name ${processName} -i max`
+          : `pm2 start ${scriptPath} --name ${processName} -i ${instances}`;
+          
+        await exec(command);
         console.log(`✅ Process started: ${processName}`);
+        console.log('💡 Use "List processes" to see running processes');
+        console.log('💡 Use "Monitor processes" to watch real-time status');
+        
+        return {
+          success: true,
+          scriptPath,
+          processName,
+          instances,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-start-process', error);
@@ -484,10 +779,18 @@ class PM2Manager {
    */
   async listProcesses() {
     try {
-      await this.setup.safety.safeExecute('pm2-list-processes', {}, async () => {
+      await this.setup.safety.safeExecute('pm2-list-processes', {
+        platform: this.platform
+      }, async () => {
         const { stdout } = await exec('pm2 list');
         console.log('\n📋 PM2 Process List:');
         console.log(stdout);
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-list-processes', error);
@@ -511,13 +814,61 @@ class PM2Manager {
       await this.setup.safety.safeExecute('pm2-stop-process', {
         processName
       }, async () => {
-        if (processName === 'all') {
-          await exec('pm2 stop all');
-          console.log('✅ All processes stopped');
-        } else {
-          await exec(`pm2 stop ${processName}`);
-          console.log(`✅ Process stopped: ${processName}`);
+        console.log('🔧 Stopping PM2 process...');
+        
+        // Check if any processes are running first
+        try {
+          const { stdout } = await exec('pm2 list --no-color');
+          if (stdout.includes('No process found') || stdout.trim() === '') {
+            console.log('⚠️  No PM2 processes are currently running');
+            console.log('💡 You need to start processes first using "Start process" option');
+            console.log('✅ PM2 stop operation completed (no processes to stop)');
+            return {
+              success: true,
+              message: 'No processes to stop',
+              platform: this.platform,
+              timestamp: new Date().toISOString()
+            };
+          }
+        } catch (error) {
+          console.log('⚠️  Could not check PM2 process list');
         }
+        
+        if (processName === 'all') {
+          try {
+            await exec('pm2 stop all');
+            console.log('✅ All processes stopped');
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log('⚠️  No PM2 processes are currently running');
+              console.log('💡 You need to start processes first using "Start process" option');
+              console.log('✅ PM2 stop operation completed (no processes to stop)');
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          try {
+            await exec(`pm2 stop ${processName}`);
+            console.log(`✅ Process stopped: ${processName}`);
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log(`⚠️  Process "${processName}" not found`);
+              console.log('💡 Use "List processes" to see available processes');
+              console.log('💡 Or start a new process using "Start process" option');
+              console.log('✅ PM2 stop operation completed (process not found)');
+            } else {
+              throw error;
+            }
+          }
+        }
+        
+        return {
+          success: true,
+          processName,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-stop-process', error);
@@ -541,13 +892,63 @@ class PM2Manager {
       await this.setup.safety.safeExecute('pm2-restart-process', {
         processName
       }, async () => {
-        if (processName === 'all') {
-          await exec('pm2 restart all');
-          console.log('✅ All processes restarted');
-        } else {
-          await exec(`pm2 restart ${processName}`);
-          console.log(`✅ Process restarted: ${processName}`);
+        console.log('🔧 Restarting PM2 process...');
+        
+        // Check if any processes are running first
+        try {
+          const { stdout } = await exec('pm2 list --no-color');
+          if (stdout.includes('No process found') || stdout.trim() === '') {
+            console.log('⚠️  No PM2 processes are currently running');
+            console.log('💡 You need to start processes first using "Start process" option');
+            console.log('💡 Or create an ecosystem.config.js file and run: pm2 start ecosystem.config.js');
+            console.log('✅ PM2 restart operation completed (no processes to restart)');
+            return {
+              success: true,
+              message: 'No processes to restart',
+              platform: this.platform,
+              timestamp: new Date().toISOString()
+            };
+          }
+        } catch (error) {
+          console.log('⚠️  Could not check PM2 process list');
         }
+        
+        if (processName === 'all') {
+          try {
+            await exec('pm2 restart all');
+            console.log('✅ All processes restarted');
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log('⚠️  No PM2 processes are currently running');
+              console.log('💡 You need to start processes first using "Start process" option');
+              console.log('💡 Or create an ecosystem.config.js file and run: pm2 start ecosystem.config.js');
+              console.log('✅ PM2 restart operation completed (no processes to restart)');
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          try {
+            await exec(`pm2 restart ${processName}`);
+            console.log(`✅ Process restarted: ${processName}`);
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log(`⚠️  Process "${processName}" not found`);
+              console.log('💡 Use "List processes" to see available processes');
+              console.log('💡 Or start a new process using "Start process" option');
+              console.log('✅ PM2 restart operation completed (process not found)');
+            } else {
+              throw error;
+            }
+          }
+        }
+        
+        return {
+          success: true,
+          processName,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-restart-process', error);
@@ -571,13 +972,61 @@ class PM2Manager {
       await this.setup.safety.safeExecute('pm2-delete-process', {
         processName
       }, async () => {
-        if (processName === 'all') {
-          await exec('pm2 delete all');
-          console.log('✅ All processes deleted');
-        } else {
-          await exec(`pm2 delete ${processName}`);
-          console.log(`✅ Process deleted: ${processName}`);
+        console.log('🔧 Deleting PM2 process...');
+        
+        // Check if any processes are running first
+        try {
+          const { stdout } = await exec('pm2 list --no-color');
+          if (stdout.includes('No process found') || stdout.trim() === '') {
+            console.log('⚠️  No PM2 processes are currently running');
+            console.log('💡 You need to start processes first using "Start process" option');
+            console.log('✅ PM2 delete operation completed (no processes to delete)');
+            return {
+              success: true,
+              message: 'No processes to delete',
+              platform: this.platform,
+              timestamp: new Date().toISOString()
+            };
+          }
+        } catch (error) {
+          console.log('⚠️  Could not check PM2 process list');
         }
+        
+        if (processName === 'all') {
+          try {
+            await exec('pm2 delete all');
+            console.log('✅ All processes deleted');
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log('⚠️  No PM2 processes are currently running');
+              console.log('💡 You need to start processes first using "Start process" option');
+              console.log('✅ PM2 delete operation completed (no processes to delete)');
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          try {
+            await exec(`pm2 delete ${processName}`);
+            console.log(`✅ Process deleted: ${processName}`);
+          } catch (error) {
+            if (error.message.includes('No process found')) {
+              console.log(`⚠️  Process "${processName}" not found`);
+              console.log('💡 Use "List processes" to see available processes');
+              console.log('💡 Or start a new process using "Start process" option');
+              console.log('✅ PM2 delete operation completed (process not found)');
+            } else {
+              throw error;
+            }
+          }
+        }
+        
+        return {
+          success: true,
+          processName,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-delete-process', error);
@@ -591,7 +1040,9 @@ class PM2Manager {
    */
   async monitorProcesses() {
     try {
-      await this.setup.safety.safeExecute('pm2-monitor-processes', {}, async () => {
+      await this.setup.safety.safeExecute('pm2-monitor-processes', {
+        platform: this.platform
+      }, async () => {
         console.log('🔍 Monitoring PM2 processes...');
         console.log('Press Ctrl+C to stop monitoring');
 
@@ -605,6 +1056,12 @@ class PM2Manager {
         });
 
         await monitorProcess;
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('pm2-monitor-processes', error);

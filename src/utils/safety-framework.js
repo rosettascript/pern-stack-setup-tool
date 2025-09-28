@@ -75,7 +75,10 @@ class SafetyFramework {
         platform: Joi.string().valid('linux', 'darwin', 'win32').required(),
         arch: Joi.string().valid('x64', 'arm64', 'ia32').required(),
         memory: Joi.number().min(1024 * 1024 * 1024).required(), // 1GB minimum
-        diskSpace: Joi.number().min(5 * 1024 * 1024 * 1024).required() // 5GB minimum
+        diskSpace: Joi.number().min(5 * 1024 * 1024 * 1024).required(), // 5GB minimum
+        user: Joi.string().optional(),
+        uid: Joi.number().optional(),
+        gid: Joi.number().optional()
       }),
 
       postgresql: Joi.object({
@@ -106,6 +109,295 @@ class SafetyFramework {
         location: Joi.string().min(1).max(500).required(),
         template: Joi.string().optional(),
         features: Joi.array().items(Joi.string()).default([])
+      }),
+
+      'project-creation': Joi.object({
+        name: Joi.string().pattern(/^[a-zA-Z0-9-_]+$/).min(1).max(50).required(),
+        type: Joi.string().valid('basic', 'fullstack', 'full-stack', 'backend', 'frontend', 'microservices').required(),
+        location: Joi.string().min(1).max(500).required(),
+        template: Joi.string().optional(),
+        features: Joi.array().items(Joi.string()).default([])
+      }),
+
+      'postgresql-manual-setup': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+$/).required(),
+        port: Joi.number().integer().min(1024).max(65535).default(5432),
+        username: Joi.string().alphanum().min(1).max(63).required(),
+        database: Joi.string().alphanum().min(1).max(63).required(),
+        password: Joi.string().min(8).max(128).required()
+      }),
+
+      'postgresql-automatic-setup': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+$/).required(),
+        port: Joi.number().integer().min(1024).max(65535).default(5432),
+        username: Joi.string().alphanum().min(1).max(63).required(),
+        database: Joi.string().alphanum().min(1).max(63).required(),
+        password: Joi.string().min(8).max(128).required()
+      }),
+
+      'postgresql-download': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+$/).required(),
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'redis-download': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+$/).required(),
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'redis-setup': Joi.object({
+        port: Joi.number().integer().min(1024).max(65535).default(6379),
+        password: Joi.string().min(1).max(128).optional(),
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'redis-manual-setup': Joi.object({
+        port: Joi.number().integer().min(1024).max(65535).default(6379),
+        password: Joi.string().min(1).max(128).optional(),
+        maxMemory: Joi.number().integer().min(1).max(10000).required(),
+        persistence: Joi.string().valid('RDB', 'AOF', 'Both', 'None').required(),
+        maxClients: Joi.number().integer().min(1).max(10000).default(1000),
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'redis-automatic-setup': Joi.object({
+        port: Joi.number().integer().min(1024).max(65535).default(6379),
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'docker-download': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+$/).required(),
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-setup': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-engine-install': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-compose-install': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-desktop-install': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-automatic-setup': Joi.object({
+        backup: Joi.boolean().default(false),
+        targetPath: Joi.string().required(),
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-daemon-config': Joi.object({
+        backup: Joi.boolean().default(false),
+        targetPath: Joi.string().required(),
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+      }),
+
+      'docker-network-setup': Joi.object({
+        networkName: Joi.string().min(1).max(50).required()
+      }),
+
+      'docker-volume-setup': Joi.object({
+        volumeName: Joi.string().min(1).max(50).required()
+      }),
+
+      'pm2-download': Joi.object({
+        version: Joi.string().pattern(/^\d+\.\d+\.\d+$/).required(),
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'pm2-setup': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'pm2-manual-setup': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'pm2-automatic-setup': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'pm2-global-install': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required()
+      }),
+
+      'pm2-startup-setup': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin').required()
+      }),
+
+      'pm2-start-process': Joi.object({
+        scriptPath: Joi.string().required(),
+        processName: Joi.string().min(1).max(50).required(),
+        instances: Joi.alternatives().try(
+          Joi.string().valid('max'),
+          Joi.number().integer().min(1).max(100)
+        ).required()
+      }),
+
+      'pm2-list-processes': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required()
+      }),
+
+      'pm2-stop-process': Joi.object({
+        processName: Joi.string().min(1).max(50).required()
+      }),
+
+      'pm2-restart-process': Joi.object({
+        processName: Joi.string().min(1).max(50).required()
+      }),
+
+      'pm2-delete-process': Joi.object({
+        processName: Joi.string().min(1).max(50).required()
+      }),
+
+      'pm2-monitor-processes': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required()
+      }),
+
+      // Nginx operations
+      'nginx-download': Joi.object({
+        version: Joi.string().optional(),
+        platform: Joi.string().valid('linux', 'darwin').optional()
+      }),
+
+      'nginx-reverse-proxy': Joi.object({
+        domain: Joi.string().required(),
+        frontendPort: Joi.number().integer().min(1).max(65535).required(),
+        backendPort: Joi.number().integer().min(1).max(65535).required(),
+        ssl: Joi.boolean().optional()
+      }),
+
+      'nginx-load-balancer': Joi.object({
+        domain: Joi.string().required(),
+        backendPorts: Joi.array().items(Joi.number().integer().min(1).max(65535)).min(2).required(),
+        ssl: Joi.boolean().optional()
+      }),
+
+      'nginx-letsencrypt': Joi.object({
+        domain: Joi.string().required(),
+        email: Joi.string().email().required()
+      }),
+
+      'nginx-existing-cert': Joi.object({
+        domain: Joi.string().required(),
+        certPath: Joi.string().required(),
+        keyPath: Joi.string().required()
+      }),
+
+      'nginx-self-signed': Joi.object({
+        domain: Joi.string().required()
+      }),
+
+      'nginx-single-proxy': Joi.object({
+        domain: Joi.string().required(),
+        backendPort: Joi.number().integer().min(1).max(65535).required()
+      }),
+
+      'nginx-load-balanced': Joi.object({
+        domain: Joi.string().required(),
+        backendPorts: Joi.array().items(Joi.number().integer().min(1).max(65535)).min(2).required()
+      }),
+
+      'nginx-static-files': Joi.object({
+        domain: Joi.string().required(),
+        rootPath: Joi.string().required()
+      }),
+
+      'nginx-websocket': Joi.object({
+        domain: Joi.string().required(),
+        backendPort: Joi.number().integer().min(1).max(65535).required()
+      }),
+
+      'nginx-full-config': Joi.object({
+        domain: Joi.string().required()
+      }),
+
+      'nginx-list-sites': Joi.object({}),
+
+      'nginx-enable-site': Joi.object({
+        siteName: Joi.string().required()
+      }),
+
+      'nginx-disable-site': Joi.object({
+        siteName: Joi.string().required()
+      }),
+
+      'nginx-delete-site': Joi.object({
+        siteName: Joi.string().required()
+      }),
+
+      'nginx-test-config': Joi.object({}),
+
+      'nginx-reload': Joi.object({}),
+
+      // Test operations
+      'setup-jest': Joi.object({}),
+      'setup-supertest': Joi.object({}),
+      'setup-cypress': Joi.object({}),
+      'setup-newman': Joi.object({}),
+      'setup-artillery': Joi.object({}),
+
+      // Security operations
+      'security-scan': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        scanType: Joi.string().valid('full', 'dependencies', 'code', 'configuration').default('full'),
+        outputFormat: Joi.string().valid('json', 'html', 'text').default('json')
+      }),
+      'security-policies': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        policyType: Joi.string().valid('cors', 'rate-limiting', 'authentication', 'encryption').required()
+      }),
+      'vulnerability-monitoring': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        monitoringType: Joi.string().valid('continuous', 'scheduled', 'manual').default('scheduled')
+      }),
+      'security-report': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        reportType: Joi.string().valid('summary', 'detailed', 'compliance').default('summary')
+      }),
+      'compliance-check': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        framework: Joi.string().valid('SOC2', 'HIPAA', 'GDPR', 'PCI-DSS').required()
+      }),
+
+      // Template operations
+      'template-generation': Joi.object({
+        templateName: Joi.string().min(1).max(100).required(),
+        projectName: Joi.string().pattern(/^[a-zA-Z0-9-_]+$/).min(1).max(50).required(),
+        authorName: Joi.string().min(1).max(100).required(),
+        databaseName: Joi.string().pattern(/^[a-zA-Z0-9-_]+$/).min(1).max(63).required(),
+        jwtSecret: Joi.string().min(32).max(128).optional(),
+        projectLocation: Joi.string().min(1).max(500).required()
+      }),
+      'template-setup': Joi.object({
+        templateName: Joi.string().min(1).max(100).required(),
+        projectName: Joi.string().pattern(/^[a-zA-Z0-9-_]+$/).min(1).max(50).required(),
+        projectLocation: Joi.string().min(1).max(500).required()
+      }),
+
+      // Dependency installation operations
+      'client-deps-install': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        packageManager: Joi.string().valid('npm', 'yarn', 'pnpm').default('npm')
+      }),
+      'server-deps-install': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        packageManager: Joi.string().valid('npm', 'yarn', 'pnpm').default('npm')
+      }),
+      'template-deps-install': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        packageManager: Joi.string().valid('npm', 'yarn', 'pnpm').default('npm')
+      }),
+      'deps-install': Joi.object({
+        projectPath: Joi.string().min(1).max(500).required(),
+        packageManager: Joi.string().valid('npm', 'yarn', 'pnpm').default('npm'),
+        dependencies: Joi.array().items(Joi.string()).default([])
       })
     };
   }
@@ -407,7 +699,16 @@ class SafetyFramework {
         path.join(os.homedir(), '.pern-setup'),
         '/tmp',
         '/var/tmp',
-        os.tmpdir()
+        os.tmpdir(),
+        // System configuration directories
+        '/etc/docker',
+        '/etc/redis',
+        '/etc/nginx',
+        '/etc/postgresql',
+        '/etc/systemd',
+        '/var/lib/docker',
+        '/var/lib/redis',
+        '/var/lib/postgresql'
       ];
 
       const isAllowed = allowedBasePaths.some(basePath => {
@@ -561,6 +862,7 @@ class SafetyFramework {
    */
   async safeExecute(operation, parameters, executor) {
     const startTime = Date.now();
+    let backupPath = null;
 
     try {
       // Pre-operation validation
@@ -572,7 +874,6 @@ class SafetyFramework {
       this.safetyMetrics.privilegeChecks++;
 
       // Pre-operation backup (if applicable)
-      let backupPath = null;
       if (parameters.backup && parameters.targetPath) {
         backupPath = await this.createBackup(operation, parameters.targetPath);
       }
@@ -650,6 +951,13 @@ class SafetyFramework {
       case 'docker':
         await this.validateDockerResult(result);
         break;
+      case 'setup-jest':
+      case 'setup-supertest':
+      case 'setup-cypress':
+      case 'setup-newman':
+      case 'setup-artillery':
+        await this.validateTestFrameworkResult(result);
+        break;
       default:
         // Generic validation
         if (!result || typeof result !== 'object') {
@@ -718,6 +1026,39 @@ class SafetyFramework {
       logger.info('✅ Docker validation successful');
     } catch (error) {
       throw new Error(`Docker validation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate test framework setup result
+   */
+  async validateTestFrameworkResult(result) {
+    try {
+      if (!result || typeof result !== 'object') {
+        throw new Error('Test framework result must be an object');
+      }
+
+      if (!result.success) {
+        throw new Error('Test framework setup was not successful');
+      }
+
+      if (!result.framework) {
+        throw new Error('Test framework result must include framework name');
+      }
+
+      if (!result.timestamp) {
+        throw new Error('Test framework result must include timestamp');
+      }
+
+      // Validate framework-specific fields
+      const validFrameworks = ['jest', 'supertest', 'cypress', 'newman', 'artillery'];
+      if (!validFrameworks.includes(result.framework)) {
+        throw new Error(`Invalid framework: ${result.framework}`);
+      }
+
+      logger.info(`✅ Test framework validation successful: ${result.framework}`);
+    } catch (error) {
+      throw new Error(`Test framework validation failed: ${error.message}`);
     }
   }
 

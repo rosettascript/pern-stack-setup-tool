@@ -33,6 +33,7 @@ class ProjectManager {
           type: 'list',
           name: 'choice',
           message: 'Folder Structure Section',
+          loop: false,
           choices: [
             '1. Create Project',
             '2. Clone Existing Project',
@@ -69,6 +70,7 @@ class ProjectManager {
         type: 'list',
         name: 'location',
         message: 'Select project location:',
+        loop: false,
         choices: this.platform === 'win32' ? [
           '1. Downloads folder: C:\\Users\\user\\Downloads',
           '2. Documents folder: C:\\Users\\user\\Documents',
@@ -125,6 +127,7 @@ class ProjectManager {
         type: 'list',
         name: 'projectType',
         message: 'Select project type:',
+        loop: false,
         choices: [
           '1. Full-stack (PERN)',
           '2. Backend only (Node + PostgreSQL)',
@@ -142,9 +145,15 @@ class ProjectManager {
         ? `${projectPath}\\${projectName}`
         : `${projectPath}/${projectName}`;
 
+      // Extract the actual project type from the choice
+      const actualProjectType = projectType.includes('Full-stack') ? 'full-stack' :
+                               projectType.includes('Backend') ? 'backend' :
+                               projectType.includes('Frontend') ? 'frontend' :
+                               projectType.includes('Microservices') ? 'microservices' : 'basic';
+
       await this.setup.safety.safeExecute('project-creation', {
-        projectName,
-        projectType: projectType.split(' ')[0].toLowerCase(),
+        name: projectName,
+        type: actualProjectType,
         location: fullProjectPath
       }, async () => {
         // Create project structure
@@ -157,6 +166,15 @@ class ProjectManager {
 
         this.setup.state.completedComponents.add('project');
         console.log(`✅ Project created successfully at ${fullProjectPath}`);
+        
+        // Return a proper result object for validation
+        return {
+          success: true,
+          projectName,
+          projectType: actualProjectType,
+          location: fullProjectPath,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {

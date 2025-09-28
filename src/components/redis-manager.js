@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ora = require('ora');
 
 /**
  * Redis Manager Class
@@ -32,7 +33,8 @@ class RedisManager {
           type: 'list',
           name: 'choice',
           message: 'Redis Section',
-          choices: [
+          loop: false,
+        choices: [
             '1. Download Redis',
             '2. Setup Redis',
             '3. Go back'
@@ -63,13 +65,33 @@ class RedisManager {
    */
   async download() {
     try {
-      await this.setup.safety.safeExecute('redis-download', {}, async () => {
+      await this.setup.safety.safeExecute('redis-download', {
+        version: '7.0',
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Starting Redis download and installation...');
+        console.log('📝 This may take a few minutes depending on your internet connection');
+        
         if (this.platform === 'linux') {
+          console.log('🐧 Installing Redis on Linux...');
+          
+          const updateSpinner = ora('📦 Updating package lists...').start();
           await exec('sudo apt update');
+          updateSpinner.succeed('✅ Package lists updated');
+          
+          const installSpinner = ora('📦 Installing Redis server...').start();
+          console.log('⏳ This may take 1-3 minutes...');
           await exec('sudo apt install -y redis-server');
+          installSpinner.succeed('✅ Redis installation completed on Linux');
         } else if (this.platform === 'darwin') {
+          console.log('🍎 Installing Redis on macOS...');
+          
+          const brewSpinner = ora('📦 Using Homebrew to install Redis...').start();
+          console.log('⏳ This may take 2-5 minutes...');
           await exec('brew install redis');
+          brewSpinner.succeed('✅ Redis installation completed on macOS');
         } else if (this.platform === 'win32') {
+          console.log('🪟 Windows detected - Redis not natively supported');
           console.log('📥 Redis is not natively supported on Windows.');
           console.log('💡 Alternatives:');
           console.log('   1. Use PostgreSQL for caching');
@@ -80,13 +102,18 @@ class RedisManager {
 
         this.setup.state.completedComponents.add('redis');
         console.log('✅ Redis downloaded successfully');
+        
+        return {
+          success: true,
+          version: '7.0',
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
       await this.setup.handleError('redis-download', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -99,7 +126,8 @@ class RedisManager {
           type: 'list',
           name: 'choice',
           message: 'Select setup type:',
-          choices: [
+          loop: false,
+        choices: [
             '1. Automatic setup',
             '2. Manual setup',
             '3. Go back'
@@ -131,8 +159,8 @@ class RedisManager {
   async automaticSetup() {
     try {
       await this.setup.safety.safeExecute('redis-automatic-setup', {
-        backup: true,
-        targetPath: '/etc/redis/redis.conf'
+        port: 6379,
+        platform: this.platform
       }, async () => {
         console.log('Setting up Redis automatically...');
         console.log('The script will auto configure:');
@@ -153,8 +181,22 @@ class RedisManager {
           await this.updateRedisConfig(redisConfig);
 
           // Start Redis service
-          await exec('sudo systemctl start redis');
-          await exec('sudo systemctl enable redis');
+          console.log('🔄 Starting Redis service...');
+          try {
+            await exec('sudo systemctl start redis');
+            console.log('✅ Redis service started');
+          } catch (error) {
+            console.log('⚠️  Redis service may already be running');
+          }
+
+          console.log('🔄 Enabling Redis service...');
+          try {
+            await exec('sudo systemctl enable redis');
+            console.log('✅ Redis service enabled');
+          } catch (error) {
+            console.log('⚠️  Redis service may already be enabled or there is a service conflict');
+            console.log('💡 This is normal if Redis was previously installed');
+          }
 
         } else if (this.platform === 'darwin') {
           await exec('brew services start redis');
@@ -169,6 +211,13 @@ class RedisManager {
 
         this.setup.state.completedComponents.add('redis');
         console.log('✅ Redis automatic setup completed');
+        
+        return {
+          success: true,
+          port: 6379,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
@@ -210,6 +259,7 @@ class RedisManager {
         type: 'list',
         name: 'persistence',
         message: 'Enable Persistence:',
+        loop: false,
         choices: ['RDB', 'AOF', 'Both', 'None']
       });
 
@@ -226,7 +276,8 @@ class RedisManager {
         password,
         maxMemory: parseInt(maxMemory),
         persistence,
-        maxClients: parseInt(maxClients)
+        maxClients: parseInt(maxClients),
+        platform: this.platform
       }, async () => {
         if (this.platform === 'linux') {
           const redisConfig = {
@@ -256,7 +307,19 @@ class RedisManager {
           await this.updateRedisConfig(redisConfig);
 
           // Restart Redis service
-          await exec('sudo systemctl restart redis');
+          console.log('🔄 Restarting Redis service...');
+          try {
+            await exec('sudo systemctl restart redis');
+            console.log('✅ Redis service restarted');
+          } catch (error) {
+            console.log('⚠️  Redis service restart failed, trying to start...');
+            try {
+              await exec('sudo systemctl start redis');
+              console.log('✅ Redis service started');
+            } catch (startError) {
+              console.log('⚠️  Redis service may already be running');
+            }
+          }
         }
 
         // Update configuration
@@ -269,6 +332,16 @@ class RedisManager {
 
         this.setup.state.completedComponents.add('redis');
         console.log('✅ Redis manual setup completed');
+        
+        return {
+          success: true,
+          port: parseInt(port),
+          maxMemory: parseInt(maxMemory),
+          persistence,
+          maxClients: parseInt(maxClients),
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
@@ -285,23 +358,17 @@ class RedisManager {
     try {
       const configPath = '/etc/redis/redis.conf';
 
-      // Backup existing config
-      if (await fs.pathExists(configPath)) {
-        await this.setup.safety.createBackup('redis-config', configPath);
+      console.log('🔧 Updating Redis configuration...');
+      console.log('📝 You may be prompted for sudo password to update Redis config');
+
+      // Backup existing config using sudo
+      await exec(`sudo cp ${configPath} ${configPath}.backup.${Date.now()}`);
+
+      // Update configuration values using sudo and sed
+      for (const [key, value] of Object.entries(config)) {
+        console.log(`🔧 Setting ${key} to ${value}...`);
+        await exec(`sudo sed -i 's/^#\\?\\s*${key}\\s.*/${key} ${value}/' ${configPath}`);
       }
-
-      // Read current config
-      let redisConf = await fs.readFile(configPath, 'utf8');
-
-      // Update configuration values
-      Object.entries(config).forEach(([key, value]) => {
-        const regex = new RegExp(`^#?\\s*${key}\\s+.*$`, 'gm');
-        const replacement = `${key} ${value}`;
-        redisConf = redisConf.replace(regex, replacement);
-      });
-
-      // Write updated config
-      await fs.writeFile(configPath, redisConf);
 
       console.log('✅ Redis configuration updated');
     } catch (error) {

@@ -32,7 +32,8 @@ class NginxManager {
           type: 'list',
           name: 'choice',
           message: 'Nginx Section',
-          choices: [
+          loop: false,
+        choices: [
             '1. Download Nginx',
             '2. Setup Nginx',
             '3. Manage Sites',
@@ -67,29 +68,58 @@ class NginxManager {
    */
   async download() {
     try {
-      await this.setup.safety.safeExecute('nginx-download', {}, async () => {
+      await this.setup.safety.safeExecute('nginx-download', {
+        platform: this.platform
+      }, async () => {
+        console.log('🔧 Installing Nginx...');
+        console.log('📝 This may take a few minutes depending on your internet connection');
+        console.log('📝 You may be prompted for sudo password to install Nginx');
+        
         if (this.platform === 'linux') {
+          console.log('🐧 Installing Nginx on Linux...');
+          const ora = require('ora');
+          const updateSpinner = ora('📦 Updating package lists...').start();
+          console.log('⏳ This may take 1-3 minutes...');
           await exec('sudo apt update');
+          updateSpinner.succeed('✅ Package lists updated');
+          
+          const installSpinner = ora('📦 Installing Nginx...').start();
+          console.log('⏳ This may take 2-5 minutes...');
           await exec('sudo apt install -y nginx');
+          installSpinner.succeed('✅ Nginx installation completed');
         } else if (this.platform === 'darwin') {
+          console.log('🍎 Installing Nginx on macOS...');
+          const ora = require('ora');
+          const installSpinner = ora('📦 Installing Nginx using Homebrew...').start();
+          console.log('⏳ This may take 3-7 minutes...');
           await exec('brew install nginx');
+          installSpinner.succeed('✅ Nginx installation completed');
         } else if (this.platform === 'win32') {
           console.log('📥 Nginx alternatives for Windows:');
           console.log('   1. Use IIS (Internet Information Services)');
           console.log('   2. Use Express built-in static file serving');
           console.log('   3. Use Docker: docker run -d -p 80:80 nginx');
-          return;
+          return {
+            success: true,
+            platform: this.platform,
+            message: 'Windows alternatives provided',
+            timestamp: new Date().toISOString()
+          };
         }
 
         this.setup.state.completedComponents.add('nginx');
         console.log('✅ Nginx downloaded successfully');
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
       await this.setup.handleError('nginx-download', error);
     }
-
-    await this.showInterface();
   }
 
   /**
@@ -102,7 +132,8 @@ class NginxManager {
           type: 'list',
           name: 'choice',
           message: 'Setup Nginx Interface',
-          choices: [
+          loop: false,
+        choices: [
             '1. Basic reverse proxy setup',
             '2. Load balancer setup',
             '3. SSL/TLS configuration',
@@ -167,14 +198,23 @@ class NginxManager {
         frontendPort,
         backendPort
       }, async () => {
+        console.log('🔧 Configuring Nginx reverse proxy...');
+        console.log('📝 You may be prompted for sudo password to update Nginx configuration');
+        
         const nginxConfig = this.generateReverseProxyConfig(domain, frontendPort, backendPort);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        console.log('📝 Writing Nginx configuration...');
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         // Enable site
+        console.log('🔗 Enabling Nginx site...');
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        
+        console.log('🧪 Testing Nginx configuration...');
         await exec('sudo nginx -t');
+        
+        console.log('🔄 Reloading Nginx...');
         await exec('sudo systemctl reload nginx');
 
         // Update configuration
@@ -185,6 +225,15 @@ class NginxManager {
 
         this.setup.state.completedComponents.add('nginx');
         console.log('✅ Nginx reverse proxy configured');
+        
+        return {
+          success: true,
+          domain,
+          frontendPort,
+          backendPort,
+          configPath,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
@@ -213,15 +262,20 @@ class NginxManager {
         default: 'localhost:5001,localhost:5002,localhost:5003'
       });
 
+      const servers = backendServers.split(',').map(server => server.trim());
+      const backendPorts = servers.map(server => {
+        const port = server.split(':')[1] || '80';
+        return parseInt(port);
+      });
+
       await this.setup.safety.safeExecute('nginx-load-balancer', {
         domain,
-        backendServers: backendServers.split(',')
+        backendPorts
       }, async () => {
-        const servers = backendServers.split(',').map(server => server.trim());
         const nginxConfig = this.generateLoadBalancerConfig(domain, servers);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         // Enable site
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
@@ -235,6 +289,15 @@ class NginxManager {
 
         this.setup.state.completedComponents.add('nginx');
         console.log('✅ Nginx load balancer configured');
+        
+        return {
+          success: true,
+          domain,
+          backendServers: servers,
+          backendPorts,
+          configPath,
+          timestamp: new Date().toISOString()
+        };
       });
 
     } catch (error) {
@@ -260,6 +323,7 @@ class NginxManager {
         type: 'list',
         name: 'sslChoice',
         message: 'SSL configuration method:',
+        loop: false,
         choices: [
           '1. Use Let\'s Encrypt (certbot)',
           '2. Use existing certificates',
@@ -293,14 +357,43 @@ class NginxManager {
    */
   async setupLetsEncrypt(domain) {
     try {
-      await this.setup.safety.safeExecute('nginx-letsencrypt', { domain }, async () => {
+      const { email } = await inquirer.prompt({
+        type: 'input',
+        name: 'email',
+        message: 'Enter email address for Let\'s Encrypt:',
+        validate: (input) => {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(input) || 'Please enter a valid email address';
+        }
+      });
+
+      await this.setup.safety.safeExecute('nginx-letsencrypt', { domain, email }, async () => {
+        console.log('🔧 Setting up Let\'s Encrypt SSL certificate...');
+        console.log('📝 This may take a few minutes to install certbot and generate certificate');
+        
+        const ora = require('ora');
+        
         // Install certbot
+        const installSpinner = ora('📦 Installing certbot and python3-certbot-nginx...').start();
+        console.log('⏳ This may take 2-5 minutes...');
         await exec('sudo apt install -y certbot python3-certbot-nginx');
+        installSpinner.succeed('✅ Certbot installation completed');
 
         // Generate SSL certificate
-        await exec(`sudo certbot --nginx -d ${domain}`);
+        const certSpinner = ora('🔐 Generating SSL certificate with Let\'s Encrypt...').start();
+        console.log('⏳ This may take 1-3 minutes...');
+        console.log('📝 You may be prompted for domain verification');
+        await exec(`sudo certbot --nginx -d ${domain} --email ${email} --agree-tos --non-interactive`);
+        certSpinner.succeed('✅ SSL certificate generated successfully');
 
         console.log('✅ Let\'s Encrypt SSL certificate configured');
+        
+        return {
+          success: true,
+          domain,
+          email,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-letsencrypt-setup', error);
@@ -331,15 +424,37 @@ class NginxManager {
         certPath,
         keyPath
       }, async () => {
+        console.log('🔧 Configuring existing SSL certificate...');
+        console.log('📝 Setting up SSL with existing certificate files');
+        
+        const ora = require('ora');
+        
+        // Generate and write Nginx configuration
+        const configSpinner = ora('📝 Generating Nginx SSL configuration...').start();
         const nginxConfig = this.generateSSLConfig(domain, certPath, keyPath);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        configSpinner.succeed('✅ Nginx SSL configuration written');
 
+        // Test and reload Nginx
+        const testSpinner = ora('🧪 Testing Nginx configuration...').start();
         await exec('sudo nginx -t');
+        testSpinner.succeed('✅ Nginx configuration test passed');
+        
+        const reloadSpinner = ora('🔄 Reloading Nginx...').start();
         await exec('sudo systemctl reload nginx');
+        reloadSpinner.succeed('✅ Nginx reloaded successfully');
 
         console.log('✅ Existing SSL certificate configured');
+        
+        return {
+          success: true,
+          domain,
+          certPath,
+          keyPath,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-existing-cert-setup', error);
@@ -352,23 +467,48 @@ class NginxManager {
   async setupSelfSignedCertificate(domain) {
     try {
       await this.setup.safety.safeExecute('nginx-self-signed', { domain }, async () => {
+        console.log('🔧 Setting up self-signed SSL certificate...');
+        console.log('📝 Generating self-signed certificate for development/testing');
+        
+        const ora = require('ora');
+        
         // Generate self-signed certificate
+        const certSpinner = ora('🔐 Generating self-signed SSL certificate...').start();
+        console.log('⏳ This may take 10-30 seconds...');
         await exec(`sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \\
           -keyout /etc/ssl/private/nginx-selfsigned.key \\
           -out /etc/ssl/certs/nginx-selfsigned.crt \\
           -subj "/C=US/ST=State/L=City/O=Organization/CN=${domain}"`);
+        certSpinner.succeed('✅ Self-signed certificate generated');
 
+        // Generate and write Nginx configuration
+        const configSpinner = ora('📝 Generating Nginx SSL configuration...').start();
         const nginxConfig = this.generateSSLConfig(domain,
           '/etc/ssl/certs/nginx-selfsigned.crt',
           '/etc/ssl/private/nginx-selfsigned.key');
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        configSpinner.succeed('✅ Nginx SSL configuration written');
 
+        // Test and reload Nginx
+        const testSpinner = ora('🧪 Testing Nginx configuration...').start();
         await exec('sudo nginx -t');
+        testSpinner.succeed('✅ Nginx configuration test passed');
+        
+        const reloadSpinner = ora('🔄 Reloading Nginx...').start();
         await exec('sudo systemctl reload nginx');
+        reloadSpinner.succeed('✅ Nginx reloaded successfully');
 
         console.log('✅ Self-signed SSL certificate configured');
+        
+        return {
+          success: true,
+          domain,
+          certPath: '/etc/ssl/certs/nginx-selfsigned.crt',
+          keyPath: '/etc/ssl/private/nginx-selfsigned.key',
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-self-signed-setup', error);
@@ -384,6 +524,7 @@ class NginxManager {
         type: 'list',
         name: 'configType',
         message: 'Configuration type:',
+        loop: false,
         choices: [
           '1. Single server proxy',
           '2. Load balanced servers',
@@ -437,24 +578,37 @@ class NginxManager {
         default: 'localhost:5000'
       });
 
+      const backendPort = parseInt(backendServer.split(':')[1] || '80');
+
       await this.setup.safety.safeExecute('nginx-single-proxy', {
         domain,
-        backendServer
+        backendPort
       }, async () => {
         const nginxConfig = this.generateSingleProxyConfig(domain, backendServer);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
         console.log('✅ Single server proxy configured');
+        
+        return {
+          success: true,
+          domain,
+          backendServer,
+          backendPort,
+          configPath,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-single-proxy-setup', error);
     }
+    
+    await this.setupInterface();
   }
 
   /**
@@ -476,25 +630,41 @@ class NginxManager {
         default: 'localhost:5001,localhost:5002,localhost:5003'
       });
 
+      const servers = backendServers.split(',').map(server => server.trim());
+      const backendPorts = servers.map(server => {
+        const port = server.split(':')[1] || '80';
+        return parseInt(port);
+      });
+
       await this.setup.safety.safeExecute('nginx-load-balanced', {
         domain,
-        backendServers: backendServers.split(',')
+        backendPorts
       }, async () => {
-        const servers = backendServers.split(',').map(server => server.trim());
         const nginxConfig = this.generateLoadBalancedConfig(domain, servers);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
         console.log('✅ Load balanced servers configured');
+        
+        return {
+          success: true,
+          domain,
+          backendServers: servers,
+          backendPorts,
+          configPath,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-load-balanced-setup', error);
     }
+    
+    await this.setupInterface();
   }
 
   /**
@@ -523,7 +693,7 @@ class NginxManager {
         const nginxConfig = this.generateStaticFileConfig(domain, rootPath);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
         await exec('sudo nginx -t');
@@ -534,6 +704,8 @@ class NginxManager {
     } catch (error) {
       await this.setup.handleError('nginx-static-files-setup', error);
     }
+    
+    await this.setupInterface();
   }
 
   /**
@@ -562,7 +734,7 @@ class NginxManager {
         const nginxConfig = this.generateWebSocketConfig(domain, backendServer);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
         await exec('sudo nginx -t');
@@ -573,6 +745,8 @@ class NginxManager {
     } catch (error) {
       await this.setup.handleError('nginx-websocket-setup', error);
     }
+    
+    await this.setupInterface();
   }
 
   /**
@@ -593,7 +767,7 @@ class NginxManager {
         const nginxConfig = this.generateFullConfig(domain);
 
         const configPath = '/etc/nginx/sites-available/pern-app';
-        await fs.writeFile(configPath, nginxConfig);
+        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
         await exec('sudo nginx -t');
@@ -604,6 +778,8 @@ class NginxManager {
     } catch (error) {
       await this.setup.handleError('nginx-full-config-setup', error);
     }
+    
+    await this.setupInterface();
   }
 
   /**
@@ -616,7 +792,8 @@ class NginxManager {
           type: 'list',
           name: 'choice',
           message: 'Nginx Site Management',
-          choices: [
+          loop: false,
+        choices: [
             '1. List sites',
             '2. Enable site',
             '3. Disable site',
@@ -672,6 +849,13 @@ class NginxManager {
         console.log('\nEnabled sites:');
         const { stdout: enabled } = await exec('ls /etc/nginx/sites-enabled/');
         console.log(enabled);
+        
+        return {
+          success: true,
+          available: available.trim().split('\n'),
+          enabled: enabled.trim().split('\n'),
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-list-sites', error);
@@ -698,6 +882,13 @@ class NginxManager {
         await exec('sudo systemctl reload nginx');
 
         console.log(`✅ Site enabled: ${siteName}`);
+        
+        return {
+          success: true,
+          siteName,
+          action: 'enabled',
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-enable-site', error);
@@ -724,6 +915,13 @@ class NginxManager {
         await exec('sudo systemctl reload nginx');
 
         console.log(`✅ Site disabled: ${siteName}`);
+        
+        return {
+          success: true,
+          siteName,
+          action: 'disabled',
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-disable-site', error);
@@ -749,6 +947,13 @@ class NginxManager {
         await exec(`sudo rm /etc/nginx/sites-enabled/${siteName}`);
 
         console.log(`✅ Site deleted: ${siteName}`);
+        
+        return {
+          success: true,
+          siteName,
+          action: 'deleted',
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-delete-site', error);
@@ -766,6 +971,13 @@ class NginxManager {
         const { stdout } = await exec('sudo nginx -t');
         console.log('✅ Nginx configuration test:');
         console.log(stdout);
+        
+        return {
+          success: true,
+          action: 'test-config',
+          output: stdout,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       console.error('❌ Nginx configuration test failed:', error.message);
@@ -782,6 +994,12 @@ class NginxManager {
       await this.setup.safety.safeExecute('nginx-reload', {}, async () => {
         await exec('sudo nginx -s reload');
         console.log('✅ Nginx reloaded successfully');
+        
+        return {
+          success: true,
+          action: 'reload',
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-reload', error);
@@ -890,7 +1108,7 @@ class NginxManager {
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
+    gzip_proxied expired no-cache no-store private auth;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
 }
 `;
@@ -1170,7 +1388,7 @@ server {
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
+    gzip_proxied expired no-cache no-store private auth;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
 }
 `;
