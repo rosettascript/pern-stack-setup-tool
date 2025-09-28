@@ -51,8 +51,8 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-org/pern-setup-tool.git
-   cd pern-setup-tool
+   git clone https://github.com/rosettascript/pern-stack-setup-tool.git
+   cd pern-stack-setup-tool
    ```
 
 2. **Install dependencies**
@@ -398,8 +398,8 @@ npm run logs:archive
 ### Setup Development Environment
 ```bash
 # Clone repository
-git clone https://github.com/your-org/pern-setup-tool.git
-cd pern-setup-tool
+git clone https://github.com/rosettascript/pern-stack-setup-tool.git
+cd pern-stack-setup-tool
 
 # Install dependencies
 npm install
@@ -526,4 +526,10 @@ MIT License - see LICENSE file for details.
 
 **Happy Coding! 🚀**
 
-For issues, questions, or contributions, please visit our [GitHub repository](https://github.com/your-org/pern-setup-tool).
+For issues, questions, or contributions, please visit our [GitHub repository](https://github.com/rosettascript/pern-stack-setup-tool).
+
+## 📧 Contact
+
+- **Author**: rosettascript
+- **Email**: rosettascript@gmail.com
+- **GitHub**: [@rosettascript](https://github.com/rosettascript)

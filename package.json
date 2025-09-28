@@ -88,7 +88,7 @@
     "microservices",
     "enterprise"
   ],
-  "author": "PERN Setup Tool",
+  "author": "rosettascript <rosettascript@gmail.com>",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
@@ -134,10 +134,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/pern-setup-tool.git"
+    "url": "https://github.com/rosettascript/pern-stack-setup-tool.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/pern-setup-tool/issues"
+    "url": "https://github.com/rosettascript/pern-stack-setup-tool/issues"
   },
-  "homepage": "https://github.com/your-org/pern-setup-tool#readme"
+  "homepage": "https://github.com/rosettascript/pern-stack-setup-tool#readme"
 }
