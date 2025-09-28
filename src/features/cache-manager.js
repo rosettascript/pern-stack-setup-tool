@@ -93,7 +93,7 @@ class CacheManager {
     const keyData = JSON.stringify({
       operation,
       parameters,
-      version: '2.0.0',
+      version: '1.0.0',
       platform: process.platform
     });
     return crypto.createHash('sha256').update(keyData).digest('hex');

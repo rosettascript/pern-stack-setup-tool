@@ -1,6 +1,6 @@
 {
   "name": "pern-setup-tool",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Comprehensive PERN Stack Setup Tool with Advanced Features",
   "main": "src/index.js",
   "scripts": {

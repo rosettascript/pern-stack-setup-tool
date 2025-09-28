@@ -1,4 +1,4 @@
-# PERN Setup Tool v2.0.0
+# PERN Setup Tool v1.0.0
 
 🚀 **Comprehensive PERN Stack Setup Tool with Advanced Features**
 

@@ -94,7 +94,7 @@ class PERNSetupTool {
    */
   async initialize() {
     try {
-      console.log(chalk.blue.bold('\n🚀 PERN Setup Tool v2.0.0'));
+      console.log(chalk.blue.bold('\n🚀 PERN Setup Tool v1.0.0'));
       console.log(chalk.gray('Comprehensive PERN Stack Setup with Advanced Features\n'));
 
       // Initialize safety framework
@@ -5016,7 +5016,7 @@ const program = require('commander');
 program
   .name('pern-setup')
   .description('Comprehensive PERN Stack Setup Tool')
-  .version('2.0.0')
+  .version('1.0.0')
   .option('--safe', 'Run in safe mode with additional validations')
   .option('--verbose', 'Enable verbose logging')
   .option('--config <file>', 'Use specific configuration file')
