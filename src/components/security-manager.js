@@ -1185,8 +1185,36 @@ class SecurityManager {
       case 'recover-communications':
         return this.checkRecoverCommunications(context);
       
+      case 'encryption-transit':
+        return this.checkEncryptionTransit(context);
+      case 'access-controls':
+        return this.checkAccessControls(context);
+      case 'audit-logging':
+        return this.checkAuditLogging(context);
+      case 'incident-response':
+        return this.checkIncidentResponse(context);
+      case 'backup-security':
+        return this.checkBackupSecurity(context);
+      case 'network-security':
+        return this.checkNetworkSecurity(context);
+      case 'api-security':
+        return this.checkAPISecurity(context);
+      case 'data-classification':
+        return this.checkDataClassification(context);
+      case 'vulnerability-management':
+        return this.checkVulnerabilityManagement(context);
+      case 'security-training':
+        return this.checkSecurityTraining(context);
+      case 'third-party-security':
+        return this.checkThirdPartySecurity(context);
+      case 'mobile-security':
+        return this.checkMobileSecurity(context);
+      case 'cloud-security':
+        return this.checkCloudSecurity(context);
+      case 'compliance-monitoring':
+        return this.checkComplianceMonitoring(context);
       default:
-        return { status: 'unknown', details: 'Check not implemented' };
+        return { status: 'unknown', details: `Security check '${checkType}' not implemented` };
     }
   }
 
@@ -1895,6 +1923,188 @@ class ContainerScanner {
     }
 
     return controlResults;
+  }
+
+  /**
+   * Check encryption in transit
+   */
+  checkEncryptionTransit(context) {
+    const hasHTTPS = context.config?.ssl?.enabled || false;
+    const hasTLS = context.config?.tls?.enabled || false;
+    
+    if (hasHTTPS || hasTLS) {
+      return { status: 'pass', details: 'Encryption in transit is configured' };
+    }
+    return { status: 'fail', details: 'Encryption in transit not configured' };
+  }
+
+  /**
+   * Check access controls
+   */
+  checkAccessControls(context) {
+    const hasAuth = context.config?.authentication?.enabled || false;
+    const hasRBAC = context.config?.rbac?.enabled || false;
+    
+    if (hasAuth && hasRBAC) {
+      return { status: 'pass', details: 'Access controls properly configured' };
+    }
+    return { status: 'warn', details: 'Access controls need improvement' };
+  }
+
+  /**
+   * Check audit logging
+   */
+  checkAuditLogging(context) {
+    const hasLogging = context.config?.logging?.enabled || false;
+    const hasAudit = context.config?.audit?.enabled || false;
+    
+    if (hasLogging && hasAudit) {
+      return { status: 'pass', details: 'Audit logging is configured' };
+    }
+    return { status: 'warn', details: 'Audit logging needs configuration' };
+  }
+
+  /**
+   * Check incident response
+   */
+  checkIncidentResponse(context) {
+    const hasPlan = context.config?.incidentResponse?.plan || false;
+    const hasTeam = context.config?.incidentResponse?.team || false;
+    
+    if (hasPlan && hasTeam) {
+      return { status: 'pass', details: 'Incident response plan in place' };
+    }
+    return { status: 'warn', details: 'Incident response plan needs development' };
+  }
+
+  /**
+   * Check backup security
+   */
+  checkBackupSecurity(context) {
+    const hasBackup = context.config?.backup?.enabled || false;
+    const hasEncryption = context.config?.backup?.encryption || false;
+    
+    if (hasBackup && hasEncryption) {
+      return { status: 'pass', details: 'Backup security is configured' };
+    }
+    return { status: 'warn', details: 'Backup security needs improvement' };
+  }
+
+  /**
+   * Check network security
+   */
+  checkNetworkSecurity(context) {
+    const hasFirewall = context.config?.network?.firewall || false;
+    const hasVPN = context.config?.network?.vpn || false;
+    
+    if (hasFirewall && hasVPN) {
+      return { status: 'pass', details: 'Network security is configured' };
+    }
+    return { status: 'warn', details: 'Network security needs configuration' };
+  }
+
+  /**
+   * Check API security
+   */
+  checkAPISecurity(context) {
+    const hasRateLimit = context.config?.api?.rateLimit || false;
+    const hasAuth = context.config?.api?.authentication || false;
+    
+    if (hasRateLimit && hasAuth) {
+      return { status: 'pass', details: 'API security is configured' };
+    }
+    return { status: 'warn', details: 'API security needs improvement' };
+  }
+
+  /**
+   * Check data classification
+   */
+  checkDataClassification(context) {
+    const hasClassification = context.config?.data?.classification || false;
+    const hasRetention = context.config?.data?.retention || false;
+    
+    if (hasClassification && hasRetention) {
+      return { status: 'pass', details: 'Data classification is implemented' };
+    }
+    return { status: 'warn', details: 'Data classification needs implementation' };
+  }
+
+  /**
+   * Check vulnerability management
+   */
+  checkVulnerabilityManagement(context) {
+    const hasScanning = context.config?.vulnerability?.scanning || false;
+    const hasPatching = context.config?.vulnerability?.patching || false;
+    
+    if (hasScanning && hasPatching) {
+      return { status: 'pass', details: 'Vulnerability management is active' };
+    }
+    return { status: 'warn', details: 'Vulnerability management needs implementation' };
+  }
+
+  /**
+   * Check security training
+   */
+  checkSecurityTraining(context) {
+    const hasTraining = context.config?.training?.security || false;
+    const hasAwareness = context.config?.training?.awareness || false;
+    
+    if (hasTraining && hasAwareness) {
+      return { status: 'pass', details: 'Security training is implemented' };
+    }
+    return { status: 'warn', details: 'Security training needs development' };
+  }
+
+  /**
+   * Check third-party security
+   */
+  checkThirdPartySecurity(context) {
+    const hasVendor = context.config?.thirdParty?.vendorManagement || false;
+    const hasAssessment = context.config?.thirdParty?.assessment || false;
+    
+    if (hasVendor && hasAssessment) {
+      return { status: 'pass', details: 'Third-party security is managed' };
+    }
+    return { status: 'warn', details: 'Third-party security needs management' };
+  }
+
+  /**
+   * Check mobile security
+   */
+  checkMobileSecurity(context) {
+    const hasMDM = context.config?.mobile?.mdm || false;
+    const hasPolicies = context.config?.mobile?.policies || false;
+    
+    if (hasMDM && hasPolicies) {
+      return { status: 'pass', details: 'Mobile security is configured' };
+    }
+    return { status: 'warn', details: 'Mobile security needs configuration' };
+  }
+
+  /**
+   * Check cloud security
+   */
+  checkCloudSecurity(context) {
+    const hasCSPM = context.config?.cloud?.cspm || false;
+    const hasCASB = context.config?.cloud?.casb || false;
+    
+    if (hasCSPM && hasCASB) {
+      return { status: 'pass', details: 'Cloud security is configured' };
+    }
+    return { status: 'warn', details: 'Cloud security needs configuration' };
+  }
+
+  /**
+   * Check compliance monitoring
+   */
+  checkComplianceMonitoring(context) {
+    const hasMonitoring = context.config?.compliance?.monitoring || false;
+    const hasReporting = context.config?.compliance?.reporting || false;
+    
+    if (hasMonitoring && hasReporting) {
+      return { status: 'pass', details: 'Compliance monitoring is active' };
+    }
+    return { status: 'warn', details: 'Compliance monitoring needs implementation' };
   }
 }
 

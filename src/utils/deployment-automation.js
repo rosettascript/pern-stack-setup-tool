@@ -1044,13 +1044,92 @@ class DeploymentAutomation {
    */
   async restoreFromDeploymentBackup(deployment) {
     try {
-      // This would restore from the specific deployment backup
       console.log('💾 Restoring from deployment backup...');
 
-      // Placeholder for actual restore logic
-      console.log('✅ Deployment backup restored');
+      const backupPath = path.join(this.backupDir, deployment.backupId);
+      
+      if (!fs.existsSync(backupPath)) {
+        throw new Error(`Backup not found: ${deployment.backupId}`);
+      }
+
+      // Restore project files
+      const projectBackupPath = path.join(backupPath, 'project');
+      if (fs.existsSync(projectBackupPath)) {
+        await this.restoreProjectFiles(projectBackupPath, deployment.projectPath);
+      }
+
+      // Restore database if backup exists
+      const dbBackupPath = path.join(backupPath, 'database');
+      if (fs.existsSync(dbBackupPath)) {
+        await this.restoreDatabase(dbBackupPath, deployment);
+      }
+
+      // Restore configuration
+      const configBackupPath = path.join(backupPath, 'config');
+      if (fs.existsSync(configBackupPath)) {
+        await this.restoreConfiguration(configBackupPath, deployment);
+      }
+
+      console.log('✅ Deployment backup restored successfully');
+      return { success: true, restoredAt: new Date().toISOString() };
     } catch (error) {
       console.error('❌ Deployment backup restore failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore project files from backup
+   */
+  async restoreProjectFiles(backupPath, targetPath) {
+    try {
+      if (fs.existsSync(targetPath)) {
+        await fs.promises.rm(targetPath, { recursive: true });
+      }
+      await fs.promises.cp(backupPath, targetPath, { recursive: true });
+      console.log(`📁 Project files restored to: ${targetPath}`);
+    } catch (error) {
+      console.error('❌ Failed to restore project files:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore database from backup
+   */
+  async restoreDatabase(backupPath, deployment) {
+    try {
+      const dbBackupFile = path.join(backupPath, 'database.sql');
+      if (fs.existsSync(dbBackupFile)) {
+        // Restore PostgreSQL database
+        const restoreCommand = `psql -h ${deployment.dbHost} -p ${deployment.dbPort} -U ${deployment.dbUser} -d ${deployment.dbName} < ${dbBackupFile}`;
+        await exec(restoreCommand);
+        console.log('🗄️ Database restored from backup');
+      }
+    } catch (error) {
+      console.error('❌ Failed to restore database:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore configuration from backup
+   */
+  async restoreConfiguration(backupPath, deployment) {
+    try {
+      const configFiles = ['package.json', '.env', 'docker-compose.yml'];
+      
+      for (const configFile of configFiles) {
+        const backupFile = path.join(backupPath, configFile);
+        const targetFile = path.join(deployment.projectPath, configFile);
+        
+        if (fs.existsSync(backupFile)) {
+          await fs.promises.copyFile(backupFile, targetFile);
+          console.log(`⚙️ Configuration restored: ${configFile}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to restore configuration:', error.message);
       throw error;
     }
   }

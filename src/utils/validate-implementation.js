@@ -200,6 +200,8 @@ class ImplementationValidator {
         this.successes.push('✅ Error handling present in main file');
       } else {
         this.warnings.push('⚠️  Error handling may be incomplete in main file');
+        // Provide specific guidance for error handling
+        this.suggestions.push('💡 Add try-catch blocks, error logging, and graceful error handling');
       }
 
       // Check for CLI interface
@@ -346,6 +348,8 @@ class ImplementationValidator {
         this.successes.push('✅ Security middleware configuration found');
       } else {
         this.warnings.push('⚠️  Security middleware configuration may be incomplete');
+        // Provide specific guidance for security middleware
+        this.suggestions.push('💡 Add helmet, cors, rate limiting, and input validation middleware');
       }
 
     } catch (error) {

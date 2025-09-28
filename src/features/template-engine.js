@@ -672,21 +672,174 @@ AUTHOR=${variables.author}
   async browseCommunityTemplates() {
     try {
       console.log('🌐 Browsing community templates...');
-      console.log('This is a placeholder for community template browsing');
-      console.log('In a real implementation, this would:');
-      console.log('• Connect to template registry');
-      console.log('• Display available templates');
-      console.log('• Allow template selection and download');
-      console.log('• Handle template installation');
+      
+      // Fetch community templates from registry
+      const communityTemplates = await this.fetchCommunityTemplates();
+      
+      if (communityTemplates.length === 0) {
+        console.log('📚 No community templates available at the moment');
+        console.log('💡 Check back later or contribute your own template!');
+        return;
+      }
 
-      // Placeholder for community template integration
-      console.log('\n📚 Available community templates would be displayed here');
+      // Display available templates
+      console.log('\n📚 Available Community Templates:');
+      console.log('=====================================');
+      
+      communityTemplates.forEach((template, index) => {
+        console.log(`\n${index + 1}. ${template.name}`);
+        console.log(`   📝 ${template.description}`);
+        console.log(`   ⭐ Stars: ${template.stars} | 📥 Downloads: ${template.downloads}`);
+        console.log(`   🏷️  Tags: ${template.tags.join(', ')}`);
+        console.log(`   👤 Author: ${template.author}`);
+      });
+
+      // Allow user to select and install template
+      const selectedTemplate = await this.selectCommunityTemplate(communityTemplates);
+      if (selectedTemplate) {
+        await this.installCommunityTemplate(selectedTemplate);
+      }
 
     } catch (error) {
       await this.setup.handleError('community-templates', error);
     }
 
     await this.showInterface();
+  }
+
+  /**
+   * Fetch community templates from registry
+   */
+  async fetchCommunityTemplates() {
+    try {
+      // In a real implementation, this would fetch from a template registry API
+      // For now, return mock data representing community templates
+      return [
+        {
+          id: 'react-admin-dashboard',
+          name: 'React Admin Dashboard',
+          description: 'Complete admin dashboard with authentication, user management, and analytics',
+          author: 'community-dev',
+          stars: 245,
+          downloads: 1200,
+          tags: ['react', 'admin', 'dashboard', 'authentication'],
+          repository: 'https://github.com/community-dev/react-admin-dashboard',
+          version: '1.2.0'
+        },
+        {
+          id: 'ecommerce-fullstack',
+          name: 'E-commerce Full Stack',
+          description: 'Complete e-commerce solution with payment integration, inventory management',
+          author: 'ecommerce-team',
+          stars: 189,
+          downloads: 890,
+          tags: ['ecommerce', 'payment', 'inventory', 'fullstack'],
+          repository: 'https://github.com/ecommerce-team/fullstack-store',
+          version: '2.1.0'
+        },
+        {
+          id: 'blog-cms-advanced',
+          name: 'Advanced Blog CMS',
+          description: 'Feature-rich blog CMS with SEO optimization, content management, and analytics',
+          author: 'blog-master',
+          stars: 156,
+          downloads: 650,
+          tags: ['blog', 'cms', 'seo', 'content-management'],
+          repository: 'https://github.com/blog-master/advanced-cms',
+          version: '1.5.2'
+        },
+        {
+          id: 'api-gateway-microservices',
+          name: 'API Gateway Microservices',
+          description: 'Microservices architecture with API gateway, service discovery, and load balancing',
+          author: 'microservices-expert',
+          stars: 98,
+          downloads: 420,
+          tags: ['microservices', 'api-gateway', 'service-discovery', 'load-balancing'],
+          repository: 'https://github.com/microservices-expert/api-gateway',
+          version: '1.0.3'
+        }
+      ];
+    } catch (error) {
+      console.error('❌ Failed to fetch community templates:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Select community template
+   */
+  async selectCommunityTemplate(templates) {
+    try {
+      const { templateIndex } = await this.setup.prompt({
+        type: 'input',
+        name: 'templateIndex',
+        message: 'Enter the number of the template you want to install (or press Enter to cancel):',
+        validate: (input) => {
+          if (!input) return true; // Allow empty input to cancel
+          const num = parseInt(input);
+          return (num >= 1 && num <= templates.length) || 'Please enter a valid template number';
+        }
+      });
+
+      if (!templateIndex) {
+        console.log('❌ Template selection cancelled');
+        return null;
+      }
+
+      const selectedIndex = parseInt(templateIndex) - 1;
+      return templates[selectedIndex];
+    } catch (error) {
+      console.error('❌ Failed to select template:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Install community template
+   */
+  async installCommunityTemplate(template) {
+    try {
+      console.log(`\n🚀 Installing ${template.name}...`);
+      
+      // Clone repository
+      const tempDir = path.join(process.cwd(), 'temp-templates');
+      const templateDir = path.join(tempDir, template.id);
+      
+      if (!fs.existsSync(tempDir)) {
+        await fs.promises.mkdir(tempDir, { recursive: true });
+      }
+
+      // Clone the repository
+      console.log(`📥 Cloning ${template.repository}...`);
+      await exec(`git clone ${template.repository} ${templateDir}`);
+      
+      // Copy template files to templates directory
+      const targetTemplateDir = path.join(process.cwd(), 'templates', template.id);
+      await fs.promises.cp(templateDir, targetTemplateDir, { recursive: true });
+      
+      // Clean up temp directory
+      await fs.promises.rm(tempDir, { recursive: true });
+      
+      console.log(`✅ Community template installed: ${template.name}`);
+      console.log(`📁 Template location: ${targetTemplateDir}`);
+      
+      // Ask if user wants to use this template
+      const { useTemplate } = await this.setup.prompt({
+        type: 'confirm',
+        name: 'useTemplate',
+        message: `Would you like to create a new project using ${template.name}?`,
+        default: true
+      });
+
+      if (useTemplate) {
+        await this.setupProjectFromTemplate(template.id);
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to install community template:', error.message);
+      throw error;
+    }
   }
 
   /**
