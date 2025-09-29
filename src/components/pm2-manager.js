@@ -1499,6 +1499,11 @@ class PM2Manager {
           setTimeout(() => {
             logProcess.childProcess.kill('SIGINT');
             console.log('\n✅ Log viewing completed');
+            console.log('🔄 Returning to PM2 process management...');
+            // Navigate directly from timeout
+            setTimeout(() => {
+              this.manageProcesses();
+            }, 1000);
           }, duration * 1000);
           
           try {
@@ -1527,6 +1532,11 @@ class PM2Manager {
             originalSigintHandler.forEach(handler => process.on('SIGINT', handler));
             
             console.log('✅ Log viewing stopped');
+            console.log('🔄 Returning to PM2 process management...');
+            // Navigate directly from SIGINT handler
+            setTimeout(() => {
+              this.manageProcesses();
+            }, 1000);
           };
 
           process.on('SIGINT', handleSigint);
@@ -1535,6 +1545,11 @@ class PM2Manager {
             await logProcess;
             // If we reach here, the process ended naturally
             console.log('✅ Log viewing completed');
+            console.log('🔄 Returning to PM2 process management...');
+            // Navigate directly from natural completion
+            setTimeout(() => {
+              this.manageProcesses();
+            }, 1000);
           } catch (error) {
             if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
               console.log('✅ Log viewing stopped by user');
@@ -1550,12 +1565,6 @@ class PM2Manager {
           timestamp: new Date().toISOString()
         };
       });
-
-      // Navigation happens after safeExecute completes
-      console.log('🔄 Returning to PM2 process management...');
-      console.log('Debug: About to call manageProcesses()');
-      await this.manageProcesses();
-      console.log('Debug: manageProcesses() completed');
     } catch (error) {
       await this.setup.handleError('pm2-logs', error);
     }
