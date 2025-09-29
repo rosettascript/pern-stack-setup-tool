@@ -485,8 +485,13 @@ class PrivilegeValidator {
       postgresql: ['filesystem'],
       redis: ['filesystem'],
       docker: ['filesystem'], // Changed from ['docker', 'filesystem'] to allow sudo usage
-      nginx: ['sudo', 'filesystem'], // Changed from ['sudo', 'filesystem', 'network'] to allow local installation
+      nginx: ['filesystem'], // Changed from ['sudo', 'filesystem'] to allow read-only operations
       pm2: ['filesystem'], // Changed from ['filesystem', 'network'] to allow local npm install
+      // Specific Nginx operations that need sudo
+      'nginx-enable-site': ['sudo', 'filesystem'],
+      'nginx-disable-site': ['sudo', 'filesystem'],
+      'nginx-delete-site': ['sudo', 'filesystem'],
+      'nginx-reload': ['sudo', 'filesystem'],
       template: ['filesystem'], // Template operations need filesystem access
       // General operations last (least specific)
       system: ['sudo'],
