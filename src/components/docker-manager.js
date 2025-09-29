@@ -9,6 +9,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 const ora = require('ora');
+const ProjectDiscovery = require('../utils/project-discovery');
 
 /**
  * Docker Manager Class
@@ -21,6 +22,7 @@ class DockerManager {
     this.safety = setupTool.safety;
     this.config = setupTool.config;
     this.platform = process.platform;
+    this.projectDiscovery = new ProjectDiscovery();
   }
 
   /**
@@ -105,6 +107,8 @@ class DockerManager {
     } catch (error) {
       await this.setup.handleError('docker-download', error);
     }
+
+    await this.setup.showMainInterface();
   }
 
   /**
@@ -149,19 +153,25 @@ class DockerManager {
    */
   async automaticSetup() {
     try {
+      // Let user select project for Docker setup
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Docker automatic setup:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       await this.setup.safety.safeExecute('docker-automatic-setup', {
         backup: true,
         targetPath: '/etc/docker/daemon.json',
-        platform: this.platform
+        platform: this.platform,
+        projectDir
       }, async () => {
         console.log('🔧 Starting automatic Docker setup...');
+        console.log(`📁 Project directory: ${projectDir}`);
         console.log('📝 This will take several minutes depending on your internet connection');
         console.log('📋 The script will:');
         console.log('  - Install Docker Engine');
         console.log('  - Install Docker Compose');
         console.log('  - Add current user to docker group');
         console.log('  - Enable Docker service on startup');
-        console.log('  - Create default network: pern_network');
+        console.log('  - Create project-specific network and configuration');
 
         if (this.platform === 'linux') {
           console.log('🐧 Setting up Docker on Linux...');
@@ -197,22 +207,75 @@ class DockerManager {
             serviceSpinner.warn('⚠️  Docker service may already be running');
           }
 
-          // Create default network
-          console.log('🔄 Step 5/5: Creating default network...');
-          const networkSpinner = ora('🌐 Creating default Docker network...').start();
+          // Create project-specific network and configuration
+          console.log('🔄 Step 5/5: Creating project-specific network and configuration...');
+          const networkSpinner = ora('🌐 Creating project-specific Docker network...').start();
           await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for Docker to be ready
           
+          const projectName = path.basename(projectDir);
+          const networkName = `${projectName}_network`;
+          
           try {
-            await exec('sudo docker network create pern_network');
-            networkSpinner.succeed('✅ Default network created: pern_network');
+            await exec(`sudo docker network create ${networkName}`);
+            networkSpinner.succeed(`✅ Project network created: ${networkName}`);
           } catch (error) {
-            if (error.message.includes('network with name pern_network already exists')) {
-              networkSpinner.succeed('✅ Default network already exists: pern_network');
+            if (error.message.includes(`network with name ${networkName} already exists`)) {
+              networkSpinner.succeed(`✅ Project network already exists: ${networkName}`);
             } else {
-              networkSpinner.fail('❌ Failed to create network: pern_network');
+              networkSpinner.fail(`❌ Failed to create network: ${networkName}`);
               throw error;
             }
           }
+
+          // Create project-specific docker-compose.yml
+          console.log('🔄 Creating project-specific Docker configuration...');
+          const configSpinner = ora('📝 Creating Docker Compose files...').start();
+          
+          // Ensure project directory exists
+          await fs.ensureDir(projectDir);
+          
+          // Create docker-compose.yml
+          const composeContent = `version: '3.8'
+
+networks:
+  ${networkName}:
+    external: true
+
+services:
+  # Add your services here
+  # Example:
+  # app:
+  #   image: node:18
+  #   networks:
+  #     - ${networkName}
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+  #   ports:
+  #     - "3000:3000"
+`;
+
+          // Create docker-compose.override.yml
+          const overrideContent = `version: '3.8'
+
+# Docker Compose override for project-specific settings
+# This file extends the main docker-compose.yml with project-specific configurations
+
+# You can override Docker daemon settings here if needed
+# Example:
+# services:
+#   your-service:
+#     logging:
+#       driver: json-file
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+`;
+
+          await fs.writeFile(path.join(projectDir, 'docker-compose.yml'), composeContent);
+          await fs.writeFile(path.join(projectDir, 'docker-compose.override.yml'), overrideContent);
+          
+          configSpinner.succeed('✅ Project-specific Docker configuration created');
 
         } else if (this.platform === 'darwin') {
           console.log('🐳 Docker Desktop should be installed manually on macOS');
@@ -222,19 +285,26 @@ class DockerManager {
           console.log('📥 Download from: https://docs.docker.com/desktop/install/windows-install/');
         }
 
-        // Update configuration
-        this.config.set('docker.networks', ['pern_network']);
+        // Update configuration with project-specific settings
+        const projectName = path.basename(projectDir);
+        const networkName = `${projectName}_network`;
+        
+        this.config.set('docker.networks', [networkName]);
         this.config.set('docker.volumes', []);
         this.config.set('docker.composeFile', 'docker-compose.yml');
+        this.config.set('docker.projectDir', projectDir);
 
         this.setup.state.completedComponents.add('docker');
         console.log('🎉 Docker automatic setup completed successfully!');
+        console.log(`✅ Project network created: ${networkName}`);
+        console.log(`✅ Docker Compose files created in: ${projectDir}`);
         console.log('📝 Note: You may need to log out and log back in for docker group changes to take effect');
         
         return {
           success: true,
           platform: this.platform,
-          networks: ['pern_network'],
+          projectDir,
+          networks: [networkName],
           volumes: [],
           timestamp: new Date().toISOString()
         };
@@ -334,6 +404,9 @@ class DockerManager {
 
         console.log('✅ Docker Engine installed');
         
+        // Mark Docker as completed in setup state
+        this.setup.state.completedComponents.add('docker');
+        
         return {
           success: true,
           platform: this.platform,
@@ -383,6 +456,10 @@ class DockerManager {
    */
   async configureDockerDaemon() {
     try {
+      // Let user select project for Docker daemon configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Docker daemon configuration:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { logLevel } = await inquirer.prompt({
         type: 'list',
         name: 'logLevel',
@@ -405,21 +482,49 @@ class DockerManager {
       await this.setup.safety.safeExecute('docker-daemon-config', {
         backup: true,
         targetPath: '/etc/docker/daemon.json',
-        platform: this.platform
+        platform: this.platform,
+        projectDir
       }, async () => {
-        console.log('🔧 Configuring Docker daemon...');
+        console.log('🔧 Configuring Docker daemon for project...');
+        console.log(`📁 Project directory: ${projectDir}`);
         console.log('📝 You may be prompted for sudo password to update Docker configuration');
         
-        const configPath = '/etc/docker/daemon.json';
+        // Create project-specific daemon configuration
+        const projectConfigPath = path.join(projectDir, 'docker-daemon.json');
+        const globalConfigPath = '/etc/docker/daemon.json';
         const configContent = JSON.stringify(daemonConfig, null, 2);
         
-        // Create backup using sudo
-        console.log('🔄 Creating backup of existing Docker daemon configuration...');
-        await exec(`sudo cp ${configPath} ${configPath}.backup.${Date.now()} 2>/dev/null || true`);
+        // Create project-specific configuration file
+        console.log('🔄 Creating project-specific Docker daemon configuration...');
+        await fs.writeFile(projectConfigPath, configContent);
         
-        // Write configuration using sudo
-        console.log('🔄 Writing Docker daemon configuration...');
-        await exec(`echo '${configContent}' | sudo tee ${configPath} > /dev/null`);
+        // Also create a backup of global configuration if it exists
+        console.log('🔄 Creating backup of global Docker daemon configuration...');
+        await exec(`sudo cp ${globalConfigPath} ${globalConfigPath}.backup.${Date.now()} 2>/dev/null || true`);
+        
+        // Update global configuration for current session
+        console.log('🔄 Updating global Docker daemon configuration...');
+        await exec(`echo '${configContent}' | sudo tee ${globalConfigPath} > /dev/null`);
+
+        // Create a docker-compose override for project-specific settings
+        const composeOverride = `version: '3.8'
+
+# Docker Compose override for project-specific daemon settings
+# This file extends the main docker-compose.yml with project-specific configurations
+
+# You can override Docker daemon settings here if needed
+# Example:
+# services:
+#   your-service:
+#     logging:
+#       driver: json-file
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+`;
+
+        const overridePath = path.join(projectDir, 'docker-compose.override.yml');
+        await fs.writeFile(overridePath, composeOverride);
 
         // Restart Docker daemon
         if (this.platform === 'linux') {
@@ -438,13 +543,23 @@ class DockerManager {
           }
         }
 
+        // Update configuration
         this.config.set('docker.daemon', daemonConfig);
-        console.log('✅ Docker daemon configured');
+        this.config.set('docker.projectDir', projectDir);
+        
+        console.log('✅ Docker daemon configured for project');
+        console.log(`✅ Project-specific config created: ${projectConfigPath}`);
+        console.log(`✅ Docker Compose override created: ${overridePath}`);
+        
+        // Mark Docker as completed in setup state
+        this.setup.state.completedComponents.add('docker');
         
         return {
           success: true,
           platform: this.platform,
-          configPath,
+          projectDir,
+          projectConfigPath,
+          globalConfigPath,
           timestamp: new Date().toISOString()
         };
       });
@@ -458,6 +573,10 @@ class DockerManager {
    */
   async setupDockerNetworks() {
     try {
+      // Let user select project for Docker configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Docker network setup:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { networkName } = await inquirer.prompt({
         type: 'input',
         name: 'networkName',
@@ -466,10 +585,15 @@ class DockerManager {
       });
 
       await this.setup.safety.safeExecute('docker-network-setup', {
-        networkName
+        networkName,
+        projectDir
       }, async () => {
         console.log('🔧 Creating Docker network...');
+        console.log(`📁 Project directory: ${projectDir}`);
         console.log('📝 You may be prompted for sudo password to start Docker and create network');
+        
+        // Ensure project directory exists
+        await exec(`mkdir -p "${projectDir}"`);
         
         // Start Docker daemon first
         console.log('🔄 Starting Docker daemon...');
@@ -485,16 +609,44 @@ class DockerManager {
         
         await exec(`sudo docker network create ${networkName}`);
 
+        // Create docker-compose.yml in project directory
+        const composeContent = `version: '3.8'
+
+networks:
+  ${networkName}:
+    external: true
+
+services:
+  # Add your services here
+  # Example:
+  # app:
+  #   image: node:18
+  #   networks:
+  #     - ${networkName}
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+`;
+
+        const fs = require('fs').promises;
+        await fs.writeFile(`${projectDir}/docker-compose.yml`, composeContent);
+
         // Update configuration
         const networks = this.config.get('docker.networks', []);
         networks.push(networkName);
         this.config.set('docker.networks', networks);
+        this.config.set('docker.projectDir', projectDir);
 
         console.log(`✅ Docker network created: ${networkName}`);
+        console.log(`✅ Docker Compose file created: ${projectDir}/docker-compose.yml`);
+        
+        // Mark Docker as completed in setup state
+        this.setup.state.completedComponents.add('docker');
         
         return {
           success: true,
           networkName,
+          projectDir,
           timestamp: new Date().toISOString()
         };
       });
@@ -508,6 +660,10 @@ class DockerManager {
    */
   async setupDockerVolumes() {
     try {
+      // Let user select project for Docker configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Docker volume setup:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { volumeName } = await inquirer.prompt({
         type: 'input',
         name: 'volumeName',
@@ -516,10 +672,15 @@ class DockerManager {
       });
 
       await this.setup.safety.safeExecute('docker-volume-setup', {
-        volumeName
+        volumeName,
+        projectDir
       }, async () => {
         console.log('🔧 Creating Docker volume...');
+        console.log(`📁 Project directory: ${projectDir}`);
         console.log('📝 You may be prompted for sudo password to start Docker and create volume');
+        
+        // Ensure project directory exists
+        await exec(`mkdir -p "${projectDir}"`);
         
         // Start Docker daemon first
         console.log('🔄 Starting Docker daemon...');
@@ -539,12 +700,17 @@ class DockerManager {
         const volumes = this.config.get('docker.volumes', []);
         volumes.push(volumeName);
         this.config.set('docker.volumes', volumes);
+        this.config.set('docker.projectDir', projectDir);
 
         console.log(`✅ Docker volume created: ${volumeName}`);
+        
+        // Mark Docker as completed in setup state
+        this.setup.state.completedComponents.add('docker');
         
         return {
           success: true,
           volumeName,
+          projectDir,
           timestamp: new Date().toISOString()
         };
       });

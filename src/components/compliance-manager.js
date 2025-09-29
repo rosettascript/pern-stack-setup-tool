@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ProjectDiscovery = require('../utils/project-discovery');
 
 /**
  * Compliance Manager Class
@@ -20,6 +21,7 @@ class ComplianceManager {
     this.safety = setupTool.safety;
     this.config = setupTool.config;
     this.platform = process.platform;
+    this.projectDiscovery = new ProjectDiscovery();
     this.frameworks = {
       'soc2': new SOC2Framework(),
       'hipaa': new HIPAAFramework(),
@@ -94,6 +96,26 @@ class ComplianceManager {
    * Select project for configuration
    */
   async selectProject() {
+    try {
+      // Use the enhanced project discovery system
+      const projectDir = await this.projectDiscovery.selectProject('Select project to configure:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
+      this.config.set('project.location', projectDir);
+      this.config.set('project.name', path.basename(projectDir));
+      console.log(`✅ Selected project: ${path.basename(projectDir)}`);
+
+    } catch (error) {
+      if (error.message === 'User chose to go back') {
+        // User chose to go back, return to main interface
+        return this.setup.showMainInterface();
+      }
+      await this.setup.handleError('project-selection', error);
+    }
+  }
+
+  // Legacy method - keeping for compatibility but redirecting to new system
+  async selectProjectLegacy() {
     try {
       const fs = require('fs');
       const path = require('path');
@@ -540,6 +562,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('db-connection-config', error);
     }
+
+    await this.databaseConfiguration();
   }
 
   /**
@@ -574,6 +598,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('db-security-config', error);
     }
+
+    await this.databaseConfiguration();
   }
 
   /**
@@ -611,6 +637,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('db-performance-config', error);
     }
+
+    await this.databaseConfiguration();
   }
 
   /**
@@ -647,6 +675,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('db-backup-config', error);
     }
+
+    await this.databaseConfiguration();
   }
 
   /**
@@ -730,6 +760,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('api-settings-config', error);
     }
+
+    await this.apiConfiguration();
   }
 
   /**
@@ -762,6 +794,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('api-versioning-config', error);
     }
+
+    await this.apiConfiguration();
   }
 
   /**
@@ -797,6 +831,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('rate-limiting-config', error);
     }
+
+    await this.apiConfiguration();
   }
 
   /**
@@ -831,6 +867,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('api-documentation-config', error);
     }
+
+    await this.apiConfiguration();
   }
 
   /**
@@ -997,6 +1035,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('email-password-config', error);
     }
+
+    await this.basicAuthenticationSetup();
   }
 
   /**
@@ -1048,6 +1088,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('username-password-config', error);
     }
+
+    await this.basicAuthenticationSetup();
   }
 
   /**
@@ -1075,6 +1117,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('phone-password-config', error);
     }
+
+    await this.basicAuthenticationSetup();
   }
 
   /**
@@ -1114,6 +1158,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('multi-role-auth-setup', error);
     }
+
+    await this.authenticationConfiguration();
   }
 
   /**
@@ -1181,6 +1227,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('two-tier-role-config', error);
     }
+
+    await this.multiRoleAuthenticationSetup();
   }
 
   /**
@@ -1233,6 +1281,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('three-tier-role-config', error);
     }
+
+    await this.multiRoleAuthenticationSetup();
   }
 
   /**
@@ -1285,6 +1335,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('custom-roles-config', error);
     }
+
+    await this.multiRoleAuthenticationSetup();
   }
 
   /**
@@ -1342,6 +1394,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('oauth-configuration', error);
     }
+
+    await this.authenticationConfiguration();
   }
 
   /**
@@ -1429,6 +1483,8 @@ class ComplianceManager {
     } catch (error) {
       await this.setup.handleError('jwt-configuration', error);
     }
+
+    await this.authenticationConfiguration();
   }
 
   /**

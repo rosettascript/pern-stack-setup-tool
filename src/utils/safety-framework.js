@@ -122,16 +122,16 @@ class SafetyFramework {
       'postgresql-manual-setup': Joi.object({
         version: Joi.string().pattern(/^\d+\.\d+$/).required(),
         port: Joi.number().integer().min(1024).max(65535).default(5432),
-        username: Joi.string().alphanum().min(1).max(63).required(),
-        database: Joi.string().alphanum().min(1).max(63).required(),
+        username: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).min(1).max(63).required(),
+        database: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).min(1).max(63).required(),
         password: Joi.string().min(8).max(128).required()
       }),
 
       'postgresql-automatic-setup': Joi.object({
         version: Joi.string().pattern(/^\d+\.\d+$/).required(),
         port: Joi.number().integer().min(1024).max(65535).default(5432),
-        username: Joi.string().alphanum().min(1).max(63).required(),
-        database: Joi.string().alphanum().min(1).max(63).required(),
+        username: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).min(1).max(63).required(),
+        database: Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).min(1).max(63).required(),
         password: Joi.string().min(8).max(128).required()
       }),
 
@@ -153,16 +153,18 @@ class SafetyFramework {
 
       'redis-manual-setup': Joi.object({
         port: Joi.number().integer().min(1024).max(65535).default(6379),
-        password: Joi.string().min(1).max(128).optional(),
+        password: Joi.string().allow('').max(128).optional(),
         maxMemory: Joi.number().integer().min(1).max(10000).required(),
         persistence: Joi.string().valid('RDB', 'AOF', 'Both', 'None').required(),
         maxClients: Joi.number().integer().min(1).max(10000).default(1000),
-        platform: Joi.string().valid('linux', 'darwin').required()
+        platform: Joi.string().valid('linux', 'darwin').required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'redis-automatic-setup': Joi.object({
         port: Joi.number().integer().min(1024).max(65535).default(6379),
-        platform: Joi.string().valid('linux', 'darwin').required()
+        platform: Joi.string().valid('linux', 'darwin').required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'docker-download': Joi.object({
@@ -189,21 +191,25 @@ class SafetyFramework {
       'docker-automatic-setup': Joi.object({
         backup: Joi.boolean().default(false),
         targetPath: Joi.string().required(),
-        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'docker-daemon-config': Joi.object({
         backup: Joi.boolean().default(false),
         targetPath: Joi.string().required(),
-        platform: Joi.string().valid('linux', 'darwin', 'windows').required()
+        platform: Joi.string().valid('linux', 'darwin', 'windows').required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'docker-network-setup': Joi.object({
-        networkName: Joi.string().min(1).max(50).required()
+        networkName: Joi.string().min(1).max(50).required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'docker-volume-setup': Joi.object({
-        volumeName: Joi.string().min(1).max(50).required()
+        volumeName: Joi.string().min(1).max(50).required(),
+        projectDir: Joi.string().min(1).max(500).required()
       }),
 
       'pm2-download': Joi.object({

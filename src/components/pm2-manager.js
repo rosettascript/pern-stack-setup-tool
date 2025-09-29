@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ProjectDiscovery = require('../utils/project-discovery');
 
 /**
  * PM2 Manager Class
@@ -20,6 +21,7 @@ class PM2Manager {
     this.safety = setupTool.safety;
     this.config = setupTool.config;
     this.platform = process.platform;
+    this.projectDiscovery = new ProjectDiscovery();
   }
 
   /**
@@ -289,6 +291,18 @@ class PM2Manager {
    */
   async configureEcosystem() {
     try {
+      // Let user select project for PM2 configuration
+      let projectDir;
+      try {
+        projectDir = await this.projectDiscovery.selectProject('Select project for PM2 configuration:');
+        console.log(`📁 Selected project: ${projectDir}`);
+      } catch (error) {
+        if (error.message === 'User chose to go back') {
+          return this.setupInterface();
+        }
+        throw error;
+      }
+
       const { environment } = await inquirer.prompt({
         type: 'list',
         name: 'environment',
@@ -306,16 +320,16 @@ class PM2Manager {
 
       switch(selected) {
         case 1:
-          await this.configureDevelopment();
+          await this.configureDevelopment(projectDir);
           break;
         case 2:
-          await this.configureProduction();
+          await this.configureProduction(projectDir);
           break;
         case 3:
-          await this.configureStaging();
+          await this.configureStaging(projectDir);
           break;
         case 4:
-          await this.configureCustom();
+          await this.configureCustom(projectDir);
           break;
       }
 
@@ -329,12 +343,11 @@ class PM2Manager {
   /**
    * Configure development environment
    */
-  async configureDevelopment() {
+  async configureDevelopment(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       // Try to detect the main script file
-      const fs = require('fs');
       const commonPaths = [
         'server/src/index.js',
         'src/index.js',
@@ -384,7 +397,9 @@ class PM2Manager {
       await fs.writeFile(ecosystemPath, `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`);
 
       this.config.set('pm2.ecosystem', ecosystemConfig);
-      console.log('✅ PM2 development ecosystem configured');
+      this.config.set('pm2.projectDir', projectPath);
+      this.setup.state.completedComponents.add('pm2');
+      console.log(`✅ PM2 development ecosystem configured for project: ${path.basename(projectPath)}`);
     } catch (error) {
       await this.setup.handleError('pm2-dev-config', error);
     }
@@ -393,12 +408,11 @@ class PM2Manager {
   /**
    * Configure production environment
    */
-  async configureProduction() {
+  async configureProduction(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       // Try to detect the main script file
-      const fs = require('fs');
       const commonPaths = [
         'server/src/index.js',
         'src/index.js',
@@ -445,7 +459,9 @@ class PM2Manager {
       await fs.writeFile(ecosystemPath, `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`);
 
       this.config.set('pm2.ecosystem', ecosystemConfig);
-      console.log('✅ PM2 production ecosystem configured');
+      this.config.set('pm2.projectDir', projectPath);
+      this.setup.state.completedComponents.add('pm2');
+      console.log(`✅ PM2 production ecosystem configured for project: ${path.basename(projectPath)}`);
     } catch (error) {
       await this.setup.handleError('pm2-prod-config', error);
     }
@@ -454,12 +470,11 @@ class PM2Manager {
   /**
    * Configure staging environment
    */
-  async configureStaging() {
+  async configureStaging(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       // Try to detect the main script file
-      const fs = require('fs');
       const commonPaths = [
         'server/src/index.js',
         'src/index.js',
@@ -503,7 +518,9 @@ class PM2Manager {
       await fs.writeFile(ecosystemPath, `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`);
 
       this.config.set('pm2.ecosystem', ecosystemConfig);
-      console.log('✅ PM2 staging ecosystem configured');
+      this.config.set('pm2.projectDir', projectPath);
+      this.setup.state.completedComponents.add('pm2');
+      console.log(`✅ PM2 staging ecosystem configured for project: ${path.basename(projectPath)}`);
     } catch (error) {
       await this.setup.handleError('pm2-staging-config', error);
     }
@@ -512,19 +529,17 @@ class PM2Manager {
   /**
    * Configure custom ecosystem
    */
-  async configureCustom() {
+  async configureCustom(projectDir) {
     try {
       const { appName } = await inquirer.prompt({
         type: 'input',
         name: 'appName',
         message: 'Enter app name:',
-        default: this.config.get('project.name', 'pern-app')
+        default: path.basename(projectDir)
       });
 
       // Try to detect common script paths
-      const fs = require('fs');
-      const path = require('path');
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const commonPaths = [
         'server/src/index.js',
         'src/index.js',
@@ -602,7 +617,9 @@ class PM2Manager {
       await fs.writeFile(ecosystemPath, `module.exports = ${JSON.stringify(ecosystemConfig, null, 2)};`);
 
       this.config.set('pm2.ecosystem', ecosystemConfig);
-      console.log('✅ PM2 custom ecosystem configured');
+      this.config.set('pm2.projectDir', projectPath);
+      this.setup.state.completedComponents.add('pm2');
+      console.log(`✅ PM2 custom ecosystem configured for project: ${path.basename(projectPath)}`);
     } catch (error) {
       await this.setup.handleError('pm2-custom-config', error);
     }
@@ -620,11 +637,11 @@ class PM2Manager {
           message: 'PM2 Process Management',
           loop: false,
         choices: [
-            '1. Start new process',
+            '1. Start project process',
             '2. List all processes',
-            '3. Stop process',
-            '4. Restart process',
-            '5. Delete process',
+            '3. Stop project process',
+            '4. Restart project process',
+            '5. Delete project process',
             '6. Monitor processes',
             '7. Go back'
           ]
@@ -635,19 +652,19 @@ class PM2Manager {
 
       switch(selected) {
         case 1:
-          await this.startNewProcess();
+          await this.startProjectProcess();
           break;
         case 2:
           await this.listProcesses();
           break;
         case 3:
-          await this.stopProcess();
+          await this.stopProjectProcess();
           break;
         case 4:
-          await this.restartProcess();
+          await this.restartProjectProcess();
           break;
         case 5:
-          await this.deleteProcess();
+          await this.deleteProjectProcess();
           break;
         case 6:
           await this.monitorProcesses();
@@ -659,6 +676,110 @@ class PM2Manager {
     } catch (error) {
       await this.setup.handleError('pm2-process-management', error);
     }
+  }
+
+  /**
+   * Start project process
+   */
+  async startProjectProcess() {
+    try {
+      // Let user select project for PM2 process management
+      const projectDir = await this.projectDiscovery.selectProject('Select project to start PM2 process:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
+      const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
+
+      if (await fs.pathExists(ecosystemPath)) {
+        console.log('🚀 Starting PM2 process for project...');
+        await exec(`pm2 start ${ecosystemPath}`);
+        console.log(`✅ PM2 process started for project: ${path.basename(projectDir)}`);
+      } else {
+        console.log('⚠️  No ecosystem file found in project directory');
+        console.log('💡 Please configure PM2 ecosystem file first');
+      }
+    } catch (error) {
+      await this.setup.handleError('pm2-start-project-process', error);
+    }
+
+    await this.manageProcesses();
+  }
+
+  /**
+   * Stop project process
+   */
+  async stopProjectProcess() {
+    try {
+      // Let user select project for PM2 process management
+      const projectDir = await this.projectDiscovery.selectProject('Select project to stop PM2 process:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
+      const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
+
+      if (await fs.pathExists(ecosystemPath)) {
+        console.log('🛑 Stopping PM2 process for project...');
+        await exec(`pm2 stop ${ecosystemPath}`);
+        console.log(`✅ PM2 process stopped for project: ${path.basename(projectDir)}`);
+      } else {
+        console.log('⚠️  No ecosystem file found in project directory');
+        console.log('💡 Please configure PM2 ecosystem file first');
+      }
+    } catch (error) {
+      await this.setup.handleError('pm2-stop-project-process', error);
+    }
+
+    await this.manageProcesses();
+  }
+
+  /**
+   * Restart project process
+   */
+  async restartProjectProcess() {
+    try {
+      // Let user select project for PM2 process management
+      const projectDir = await this.projectDiscovery.selectProject('Select project to restart PM2 process:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
+      const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
+
+      if (await fs.pathExists(ecosystemPath)) {
+        console.log('🔄 Restarting PM2 process for project...');
+        await exec(`pm2 restart ${ecosystemPath}`);
+        console.log(`✅ PM2 process restarted for project: ${path.basename(projectDir)}`);
+      } else {
+        console.log('⚠️  No ecosystem file found in project directory');
+        console.log('💡 Please configure PM2 ecosystem file first');
+      }
+    } catch (error) {
+      await this.setup.handleError('pm2-restart-project-process', error);
+    }
+
+    await this.manageProcesses();
+  }
+
+  /**
+   * Delete project process
+   */
+  async deleteProjectProcess() {
+    try {
+      // Let user select project for PM2 process management
+      const projectDir = await this.projectDiscovery.selectProject('Select project to delete PM2 process:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
+      const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
+
+      if (await fs.pathExists(ecosystemPath)) {
+        console.log('🗑️  Deleting PM2 process for project...');
+        await exec(`pm2 delete ${ecosystemPath}`);
+        console.log(`✅ PM2 process deleted for project: ${path.basename(projectDir)}`);
+      } else {
+        console.log('⚠️  No ecosystem file found in project directory');
+        console.log('💡 Please configure PM2 ecosystem file first');
+      }
+    } catch (error) {
+      await this.setup.handleError('pm2-delete-project-process', error);
+    }
+
+    await this.manageProcesses();
   }
 
   /**
@@ -674,8 +795,6 @@ class PM2Manager {
       const projectPath = this.config.get('project.location', process.cwd());
       
       // Try to detect common script paths
-      const fs = require('fs');
-      const path = require('path');
       const commonPaths = [
         'server/src/index.js',
         'src/index.js',

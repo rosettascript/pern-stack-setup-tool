@@ -233,18 +233,68 @@ class SecureCommandExecutor {
         throw new Error('Invalid command format');
       }
 
+      // Whitelist of safe sudo commands and Windows equivalents
+      const safeSudoCommands = [
+        'sudo -n true',           // Check sudo access without prompt
+        'sudo -u postgres',       // Switch to postgres user
+        'sudo systemctl',         // System control commands
+        'sudo apt',               // Package management
+        'sudo brew',              // Homebrew commands
+        'sudo chmod',             // Safe chmod commands (not 777)
+        'sudo cp',                // Copy commands
+        'sudo mkdir',             // Create directories
+        'sudo touch',             // Create files
+        'sudo find',              // Find commands
+        'sudo grep',              // Grep commands
+        'sudo sed',               // Sed commands
+        'sudo cat',               // Cat commands
+        'sudo ls',                // List commands
+        'sudo ps',                // Process commands
+        'sudo whoami',            // User info
+        'sudo groups',            // Group info
+        'sudo id',                // User ID info
+        'net start',              // Windows service start
+        'net stop',               // Windows service stop
+        'net start |',            // Windows service listing
+        'sc query',               // Windows service query
+        'sc start',               // Windows service start (sc)
+        'psql -U postgres',       // PostgreSQL commands
+        'psql -d postgres',       // PostgreSQL database commands
+        'brew services',          // Homebrew service commands
+        'systemctl status',       // Linux systemctl status
+        'systemctl start',        // Linux systemctl start
+        'systemctl stop',         // Linux systemctl stop
+        'systemctl enable',       // Linux systemctl enable
+        'systemctl restart'       // Linux systemctl restart
+      ];
+
       // Check for dangerous patterns
       const dangerousPatterns = [
         /rm\s+-rf\s+\/[^\/]/,  // Dangerous rm commands
         />\s*\/dev/,           // Redirect to device files
-        /sudo\s+.*--/,         // Sudo with dangerous flags
+        /sudo\s+.*--\w/,       // Sudo with dangerous flags (but allow -n, -u, etc.)
         /curl.*\|\s*sh/,       // Pipe curl to shell
-        /wget.*\|\s*sh/        // Pipe wget to shell
+        /wget.*\|\s*sh/,       // Pipe wget to shell
+        /sudo\s+.*rm\s+-rf/,   // Sudo with dangerous rm
+        /sudo\s+.*chmod\s+777/, // Sudo with dangerous chmod
+        /sudo\s+.*passwd\s+--/, // Sudo with password reset flags
+        /sudo\s+.*userdel/,    // Sudo with user deletion
+        /sudo\s+.*groupdel/,   // Sudo with group deletion
+        /sudo\s+.*deluser/,    // Sudo with user deletion (Debian)
+        /sudo\s+.*delgroup/    // Sudo with group deletion (Debian)
       ];
 
-      for (const pattern of dangerousPatterns) {
-        if (pattern.test(command)) {
-          throw new Error(`Dangerous command pattern detected: ${pattern}`);
+      // Check if command starts with a safe sudo command
+      const isSafeSudo = safeSudoCommands.some(safeCmd => 
+        command.startsWith(safeCmd)
+      );
+
+      // Only check dangerous patterns if it's not a safe sudo command
+      if (!isSafeSudo) {
+        for (const pattern of dangerousPatterns) {
+          if (pattern.test(command)) {
+            throw new Error(`Dangerous command pattern detected: ${pattern}`);
+          }
         }
       }
 

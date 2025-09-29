@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ProjectDiscovery = require('../utils/project-discovery');
 
 /**
  * Nginx Manager Class
@@ -20,6 +21,7 @@ class NginxManager {
     this.safety = setupTool.safety;
     this.config = setupTool.config;
     this.platform = process.platform;
+    this.projectDiscovery = new ProjectDiscovery();
   }
 
   /**
@@ -172,6 +174,10 @@ class NginxManager {
    */
   async setupReverseProxy() {
     try {
+      // Let user select project for Nginx configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Nginx reverse proxy setup:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { domain } = await inquirer.prompt({
         type: 'input',
         name: 'domain',

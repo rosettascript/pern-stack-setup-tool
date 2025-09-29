@@ -8,6 +8,7 @@ const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const ProjectDiscovery = require('../utils/project-discovery');
 
 /**
  * Test Manager Class
@@ -20,6 +21,7 @@ class TestManager {
     this.safety = setupTool.safety;
     this.config = setupTool.config;
     this.platform = process.platform;
+    this.projectDiscovery = new ProjectDiscovery();
     this.testFrameworks = {
       jest: { name: 'Jest', type: 'unit', config: 'jest.config.js' },
       supertest: { name: 'Supertest', type: 'integration', config: 'integration.config.js' },
@@ -75,6 +77,10 @@ class TestManager {
    */
   async setupTestingFramework() {
     try {
+      // Let user select project for testing framework setup
+      const projectDir = await this.projectDiscovery.selectProject('Select project for testing framework setup:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { frameworks } = await inquirer.prompt({
         type: 'checkbox',
         name: 'frameworks',
@@ -94,11 +100,11 @@ class TestManager {
         : frameworks;
 
       for (const framework of frameworksToSetup) {
-        await this.setupFramework(framework);
+        await this.setupFramework(framework, projectDir);
       }
 
       this.setup.state.completedComponents.add('tests');
-      console.log('✅ Testing frameworks configured');
+      console.log(`✅ Testing frameworks configured for project: ${path.basename(projectDir)}`);
 
     } catch (error) {
       await this.setup.handleError('testing-framework-setup', error);
@@ -108,29 +114,29 @@ class TestManager {
   /**
    * Setup individual framework
    */
-  async setupFramework(framework) {
+  async setupFramework(framework, projectDir) {
     try {
-      return await this.setup.safety.safeExecute(`setup-${framework}`, {}, async () => {
+      return await this.setup.safety.safeExecute(`setup-${framework}`, { projectDir }, async () => {
         let result;
         switch(framework) {
           case 'jest':
-            result = await this.setupJest();
+            result = await this.setupJest(projectDir);
             break;
           case 'supertest':
-            result = await this.setupSupertest();
+            result = await this.setupSupertest(projectDir);
             break;
           case 'cypress':
-            result = await this.setupCypress();
+            result = await this.setupCypress(projectDir);
             break;
           case 'newman':
-            result = await this.setupNewman();
+            result = await this.setupNewman(projectDir);
             break;
           case 'artillery':
-            result = await this.setupArtillery();
+            result = await this.setupArtillery(projectDir);
             break;
         }
 
-        console.log(`✅ ${this.testFrameworks[framework].name} configured`);
+        console.log(`✅ ${this.testFrameworks[framework].name} configured for project: ${path.basename(projectDir)}`);
         return result;
       });
     } catch (error) {
@@ -141,9 +147,9 @@ class TestManager {
   /**
    * Setup Jest for unit testing
    */
-  async setupJest() {
+  async setupJest(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       // Install Jest
@@ -235,9 +241,9 @@ describe('API Tests', () => {
   /**
    * Setup Supertest for integration testing
    */
-  async setupSupertest() {
+  async setupSupertest(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       // Install Supertest
@@ -317,9 +323,9 @@ describe('Integration Tests', () => {
   /**
    * Setup Cypress for E2E testing
    */
-  async setupCypress() {
+  async setupCypress(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       // Install Cypress
@@ -405,9 +411,9 @@ describe('E2E Tests', () => {
   /**
    * Setup Newman for API testing
    */
-  async setupNewman() {
+  async setupNewman(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       // Install Newman
@@ -486,9 +492,9 @@ describe('E2E Tests', () => {
   /**
    * Setup Artillery for performance testing
    */
-  async setupArtillery() {
+  async setupArtillery(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       // Install Artillery
@@ -566,6 +572,10 @@ describe('E2E Tests', () => {
    */
   async runTests() {
     try {
+      // Let user select project for running tests
+      const projectDir = await this.projectDiscovery.selectProject('Select project to run tests for:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { testType } = await inquirer.prompt({
         type: 'list',
         name: 'testType',
@@ -586,22 +596,22 @@ describe('E2E Tests', () => {
 
       switch(selected) {
         case 1:
-          await this.runJestTests();
+          await this.runJestTests(projectDir);
           break;
         case 2:
-          await this.runSupertestTests();
+          await this.runSupertestTests(projectDir);
           break;
         case 3:
-          await this.runCypressTests();
+          await this.runCypressTests(projectDir);
           break;
         case 4:
-          await this.runNewmanTests();
+          await this.runNewmanTests(projectDir);
           break;
         case 5:
-          await this.runArtilleryTests();
+          await this.runArtilleryTests(projectDir);
           break;
         case 6:
-          await this.runAllTests();
+          await this.runAllTests(projectDir);
           break;
         case 7:
           return this.showInterface();
@@ -615,9 +625,9 @@ describe('E2E Tests', () => {
   /**
    * Run Jest unit tests
    */
-  async runJestTests() {
+  async runJestTests(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       console.log('🧪 Running Jest unit tests...');
@@ -637,9 +647,9 @@ describe('E2E Tests', () => {
   /**
    * Run Supertest integration tests
    */
-  async runSupertestTests() {
+  async runSupertestTests(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       console.log('🔗 Running Supertest integration tests...');
@@ -659,9 +669,9 @@ describe('E2E Tests', () => {
   /**
    * Run Cypress E2E tests
    */
-  async runCypressTests() {
+  async runCypressTests(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       console.log('🌐 Running Cypress E2E tests...');
@@ -704,9 +714,9 @@ describe('E2E Tests', () => {
   /**
    * Run Newman API tests
    */
-  async runNewmanTests() {
+  async runNewmanTests(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       console.log('📡 Running Newman API tests...');
@@ -749,9 +759,9 @@ describe('E2E Tests', () => {
   /**
    * Run Artillery performance tests
    */
-  async runArtilleryTests() {
+  async runArtilleryTests(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
       const ora = require('ora');
 
       console.log('⚡ Running Artillery performance tests...');
@@ -794,44 +804,44 @@ describe('E2E Tests', () => {
   /**
    * Run all tests
    */
-  async runAllTests() {
+  async runAllTests(projectDir) {
     try {
       const ora = require('ora');
-      console.log('🏃 Running all tests...');
+      console.log(`🏃 Running all tests for project: ${path.basename(projectDir)}...`);
       
       const allTestsSpinner = ora('🏃 Running all test suites...').start();
       console.log('⏳ This may take 5-15 minutes depending on test complexity...');
       
       try {
-        await this.runJestTests();
+        await this.runJestTests(projectDir);
         console.log('✅ Jest tests completed');
       } catch (error) {
         console.log('⚠️  Jest tests failed, continuing with other tests...');
       }
       
       try {
-        await this.runSupertestTests();
+        await this.runSupertestTests(projectDir);
         console.log('✅ Supertest tests completed');
       } catch (error) {
         console.log('⚠️  Supertest tests failed, continuing with other tests...');
       }
       
       try {
-        await this.runCypressTests();
+        await this.runCypressTests(projectDir);
         console.log('✅ Cypress tests completed');
       } catch (error) {
         console.log('⚠️  Cypress tests failed, continuing with other tests...');
       }
       
       try {
-        await this.runNewmanTests();
+        await this.runNewmanTests(projectDir);
         console.log('✅ Newman tests completed');
       } catch (error) {
         console.log('⚠️  Newman tests failed, continuing with other tests...');
       }
       
       try {
-        await this.runArtilleryTests();
+        await this.runArtilleryTests(projectDir);
         console.log('✅ Artillery tests completed');
       } catch (error) {
         console.log('⚠️  Artillery tests failed, continuing with other tests...');
@@ -850,6 +860,10 @@ describe('E2E Tests', () => {
    */
   async configureCI() {
     try {
+      // Let user select project for CI/CD configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for CI/CD configuration:');
+      console.log(`📁 Selected project: ${projectDir}`);
+
       const { platform } = await inquirer.prompt({
         type: 'list',
         name: 'platform',
@@ -869,19 +883,19 @@ describe('E2E Tests', () => {
 
       switch(selected) {
         case 1:
-          await this.configureGitHubActions();
+          await this.configureGitHubActions(projectDir);
           break;
         case 2:
-          await this.configureGitLabCI();
+          await this.configureGitLabCI(projectDir);
           break;
         case 3:
-          await this.configureJenkins();
+          await this.configureJenkins(projectDir);
           break;
         case 4:
-          await this.configureCircleCI();
+          await this.configureCircleCI(projectDir);
           break;
         case 5:
-          await this.configureAzureDevOps();
+          await this.configureAzureDevOps(projectDir);
           break;
         case 6:
           return this.showInterface();
@@ -895,9 +909,9 @@ describe('E2E Tests', () => {
   /**
    * Configure GitHub Actions
    */
-  async configureGitHubActions() {
+  async configureGitHubActions(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       const workflow = {
         name: 'PERN CI/CD',
@@ -955,9 +969,9 @@ describe('E2E Tests', () => {
   /**
    * Configure GitLab CI
    */
-  async configureGitLabCI() {
+  async configureGitLabCI(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       const gitlabConfig = {
         stages: ['test', 'build', 'deploy'],
@@ -998,9 +1012,9 @@ describe('E2E Tests', () => {
   /**
    * Configure Jenkins
    */
-  async configureJenkins() {
+  async configureJenkins(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       const jenkinsfile = `pipeline {
     agent any
@@ -1061,9 +1075,9 @@ describe('E2E Tests', () => {
   /**
    * Configure CircleCI
    */
-  async configureCircleCI() {
+  async configureCircleCI(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       const circleConfig = {
         version: 2.1,
@@ -1121,9 +1135,9 @@ describe('E2E Tests', () => {
   /**
    * Configure Azure DevOps
    */
-  async configureAzureDevOps() {
+  async configureAzureDevOps(projectDir) {
     try {
-      const projectPath = this.config.get('project.location', process.cwd());
+      const projectPath = projectDir;
 
       const azureConfig = {
         trigger: ['main', 'develop'],
