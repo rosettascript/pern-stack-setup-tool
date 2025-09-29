@@ -1493,11 +1493,16 @@ class PostgreSQLManager {
 
       console.log(`🔧 Installing extension '${extensionName}' in database '${dbName}'...`);
 
+      // Quote extension name if it contains hyphens or special characters
+      const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+        ? `"${extensionName}"` 
+        : extensionName;
+      
       let installCommand;
       if (version) {
-        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName} VERSION '${version}';"`;
+        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName} VERSION '${version}';"`;
       } else {
-        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`;
+        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`;
       }
 
       // Add loading spinner for extension installation
@@ -2404,18 +2409,23 @@ class PostgreSQLManager {
       console.log('💡 If the tool appears stuck, press Ctrl+C to cancel and try manual approach');
       console.log('🔧 Manual approach is recommended to avoid hanging issues');
       console.log('');
+      // Quote extension name for manual instructions
+      const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+        ? `"${extensionName}"` 
+        : extensionName;
+        
       console.log('1. 🐧 For Linux/macOS - Use sudo with postgres user:');
-      console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+      console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
       console.log('');
       console.log('2. 🔑 Grant CREATE privilege to your user:');
       console.log(`   sudo -u postgres psql -d ${dbName} -c "GRANT CREATE ON DATABASE ${dbName} TO ${currentUser};"`);
       console.log('');
       console.log('3. 👑 Connect as postgres superuser:');
-      console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+      console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
       console.log('');
       console.log('4. 🔄 Switch to postgres user and try again:');
       console.log('   sudo su - postgres');
-      console.log(`   psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+      console.log(`   psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
       console.log('');
       
       // Ask if user wants to try automatic solutions
@@ -2445,14 +2455,14 @@ class PostgreSQLManager {
           console.log('2. Run one of these commands:');
           console.log('');
           console.log('   Option A - Use sudo with postgres user:');
-          console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+          console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
           console.log('');
           console.log('   Option B - Grant privileges first:');
           console.log(`   sudo -u postgres psql -d ${dbName} -c "GRANT CREATE ON DATABASE ${dbName} TO ${currentUser};"`);
-          console.log(`   psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+          console.log(`   psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
           console.log('');
           console.log('   Option C - Connect as postgres superuser:');
-          console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+          console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
           console.log('');
           console.log('3. Come back to this tool and verify the extension is installed');
           console.log('4. Use "List installed extensions" to check if it worked');
@@ -2765,7 +2775,11 @@ class PostgreSQLManager {
       const sudoSpinner = ora(`Installing extension with elevated privileges...`).start();
       
       try {
-        const installCommand = `sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`;
+        // Quote extension name if it contains hyphens or special characters
+        const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+          ? `"${extensionName}"` 
+          : extensionName;
+        const installCommand = `sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`;
         await this.execWithTimeout(installCommand, 20000); // 20 second timeout
         
         sudoSpinner.succeed(`✅ Extension '${extensionName}' installed successfully with postgres user`);
@@ -2789,7 +2803,11 @@ class PostgreSQLManager {
           console.log('• Network connectivity problems');
           console.log('');
           console.log('💡 Try running this command manually:');
-          console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+          // Quote extension name for error message
+          const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+            ? `"${extensionName}"` 
+            : extensionName;
+          console.log(`   sudo -u postgres psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
         } else {
           throw error;
         }
@@ -2823,7 +2841,11 @@ class PostgreSQLManager {
         const installSpinner = ora(`Installing extension '${extensionName}'...`).start();
         
         try {
-          await this.execWithTimeout(`psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`, 10000);
+          // Quote extension name if it contains hyphens or special characters
+          const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+            ? `"${extensionName}"` 
+            : extensionName;
+          await this.execWithTimeout(`psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`, 10000);
           installSpinner.succeed(`✅ Extension '${extensionName}' installed successfully`);
           
           // Show extension info
@@ -2882,7 +2904,11 @@ class PostgreSQLManager {
       const superuserSpinner = ora(`Installing extension as postgres superuser...`).start();
       
       try {
-        const installCommand = `psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`;
+        // Quote extension name if it contains hyphens or special characters
+        const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+          ? `"${extensionName}"` 
+          : extensionName;
+        const installCommand = `psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`;
         await this.execWithTimeout(installCommand, 20000); // 20 second timeout
         
         superuserSpinner.succeed(`✅ Extension '${extensionName}' installed successfully as postgres superuser`);
@@ -2906,7 +2932,11 @@ class PostgreSQLManager {
           console.log('• Network connectivity problems');
           console.log('');
           console.log('💡 Try running this command manually:');
-          console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${extensionName};"`);
+          // Quote extension name for error message
+          const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
+            ? `"${extensionName}"` 
+            : extensionName;
+          console.log(`   psql -U postgres -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`);
         } else {
           throw error;
         }
