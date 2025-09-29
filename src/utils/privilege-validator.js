@@ -449,7 +449,7 @@ class PrivilegeValidator {
       user: this.currentUser,
       platform: this.platform,
       isRoot: this.isRunningAsRoot(),
-      hasSudo: this.checkSudoPrivilege(),
+      hasSudo: false, // Don't check sudo unless specifically needed
       groups: this.validateUserGroups(),
       timestamp: new Date().toISOString()
     };
