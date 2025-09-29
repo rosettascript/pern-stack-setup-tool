@@ -111,9 +111,6 @@ class PERNSetupTool {
       // Initialize performance monitoring
       this.performance.start();
 
-      // Clear quiet mode after initialization
-      delete process.env.QUIET_MODE;
-
       this.logger.info('PERN Setup Tool initialized successfully');
 
     } catch (error) {

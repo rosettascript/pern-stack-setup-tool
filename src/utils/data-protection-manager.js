@@ -16,12 +16,18 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'data-protection' },
   transports: [
-    new winston.transports.Console({
+    // Always add file transport
+    new winston.transports.File({
+      filename: require('path').join(require('os').homedir(), '.pern-setup', 'logs', 'data-protection.log'),
+      silent: process.env.QUIET_MODE === 'true'
+    }),
+    // Only add console transport if not in quiet mode
+    ...(process.env.QUIET_MODE ? [] : [new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.simple()
       )
-    })
+    })])
   ]
 });
 
