@@ -265,7 +265,15 @@ class SecureCommandExecutor {
         'systemctl start',        // Linux systemctl start
         'systemctl stop',         // Linux systemctl stop
         'systemctl enable',       // Linux systemctl enable
-        'systemctl restart'       // Linux systemctl restart
+        'systemctl restart',      // Linux systemctl restart
+        // Basic system commands (non-sudo)
+        'groups',                 // User groups
+        'whoami',                 // Current user
+        'id',                     // User ID info
+        'whoami /groups',         // Windows groups
+        'net session',            // Windows admin check
+        'touch',                  // Create files
+        'rm'                      // Remove files
       ];
 
       // Check for dangerous patterns
