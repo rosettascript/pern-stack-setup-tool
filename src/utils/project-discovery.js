@@ -202,7 +202,7 @@ class ProjectDiscovery {
     }
 
     if (selectedProject === 'go_back') {
-      throw new Error('User chose to go back');
+      return 'GO_BACK';
     }
 
     return selectedProject;

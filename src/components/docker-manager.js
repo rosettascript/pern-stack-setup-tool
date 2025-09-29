@@ -155,6 +155,11 @@ class DockerManager {
     try {
       // Let user select project for Docker setup
       const projectDir = await this.projectDiscovery.selectProject('Select project for Docker automatic setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       await this.setup.safety.safeExecute('docker-automatic-setup', {
@@ -458,6 +463,11 @@ services:
     try {
       // Let user select project for Docker daemon configuration
       const projectDir = await this.projectDiscovery.selectProject('Select project for Docker daemon configuration:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { logLevel } = await inquirer.prompt({
@@ -575,6 +585,11 @@ services:
     try {
       // Let user select project for Docker configuration
       const projectDir = await this.projectDiscovery.selectProject('Select project for Docker network setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { networkName } = await inquirer.prompt({
@@ -662,6 +677,11 @@ services:
     try {
       // Let user select project for Docker configuration
       const projectDir = await this.projectDiscovery.selectProject('Select project for Docker volume setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { volumeName } = await inquirer.prompt({
