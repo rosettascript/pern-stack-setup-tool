@@ -4,6 +4,7 @@
  */
 
 const inquirer = require('inquirer');
+const { exec } = require('child-process-promise');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
@@ -771,7 +772,8 @@ AUTHOR=${variables.author}
    */
   async selectCommunityTemplate(templates) {
     try {
-      const { templateIndex } = await this.setup.prompt({
+      const inquirer = require('inquirer');
+      const { templateIndex } = await inquirer.prompt({
         type: 'input',
         name: 'templateIndex',
         message: 'Enter the number of the template you want to install (or press Enter to cancel):',
@@ -825,7 +827,7 @@ AUTHOR=${variables.author}
       console.log(`📁 Template location: ${targetTemplateDir}`);
       
       // Ask if user wants to use this template
-      const { useTemplate } = await this.setup.prompt({
+      const { useTemplate } = await inquirer.prompt({
         type: 'confirm',
         name: 'useTemplate',
         message: `Would you like to create a new project using ${template.name}?`,
