@@ -1184,22 +1184,91 @@ class PM2Manager {
    */
   async monitorProcesses() {
     try {
+      // Ask user for monitoring options
+      const { monitorChoice } = await inquirer.prompt({
+        type: 'list',
+        name: 'monitorChoice',
+        message: 'Select monitoring option:',
+        loop: false,
+        choices: [
+          '1. Start PM2 monitoring (pm2 monit)',
+          '2. Show PM2 status list',
+          '3. Show PM2 logs (live)',
+          '4. Go Back'
+        ]
+      });
+
+      const selected = parseInt(monitorChoice.split('.')[0]);
+
+      switch(selected) {
+        case 1:
+          await this.startPM2Monitoring();
+          break;
+        case 2:
+          await this.showPM2Status();
+          break;
+        case 3:
+          await this.showPM2Logs();
+          break;
+        case 4:
+          return this.manageProcesses();
+      }
+
+    } catch (error) {
+      await this.setup.handleError('pm2-monitor-processes', error);
+    }
+
+    await this.manageProcesses();
+  }
+
+  /**
+   * Start PM2 monitoring with proper signal handling
+   */
+  async startPM2Monitoring() {
+    try {
       await this.setup.safety.safeExecute('pm2-monitor-processes', {
         platform: this.platform
       }, async () => {
-        console.log('🔍 Monitoring PM2 processes...');
-        console.log('Press Ctrl+C to stop monitoring');
+        console.log('🔍 Starting PM2 monitoring...');
+        console.log('Press Ctrl+C to stop monitoring and return to menu');
 
         const { exec } = require('child-process-promise');
         const monitorProcess = exec('pm2 monit');
 
-        // Handle graceful exit
-        process.on('SIGINT', () => {
-          monitorProcess.childProcess.kill('SIGINT');
-          console.log('\n✅ Monitoring stopped');
-        });
+        // Store original SIGINT handler
+        const originalSigintHandler = process.listeners('SIGINT').slice();
+        
+        // Remove all existing SIGINT handlers temporarily
+        process.removeAllListeners('SIGINT');
 
-        await monitorProcess;
+        // Add our custom SIGINT handler
+        const handleSigint = () => {
+          console.log('\n🛑 Stopping PM2 monitoring...');
+          monitorProcess.childProcess.kill('SIGINT');
+          
+          // Restore original handlers
+          process.removeAllListeners('SIGINT');
+          originalSigintHandler.forEach(handler => process.on('SIGINT', handler));
+          
+          console.log('✅ Monitoring stopped');
+          // Return to menu instead of exiting
+          setTimeout(() => {
+            this.manageProcesses();
+          }, 100);
+        };
+
+        process.on('SIGINT', handleSigint);
+
+        try {
+          await monitorProcess;
+        } catch (error) {
+          // Handle process termination gracefully
+          if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
+            console.log('✅ PM2 monitoring stopped by user');
+          } else {
+            throw error;
+          }
+        }
         
         return {
           success: true,
@@ -1210,8 +1279,146 @@ class PM2Manager {
     } catch (error) {
       await this.setup.handleError('pm2-monitor-processes', error);
     }
+  }
 
-    await this.manageProcesses();
+  /**
+   * Show PM2 status list
+   */
+  async showPM2Status() {
+    try {
+      await this.setup.safety.safeExecute('pm2-status', {
+        platform: this.platform
+      }, async () => {
+        console.log('📊 PM2 Process Status:');
+        console.log('=' .repeat(50));
+        
+        const { exec } = require('child-process-promise');
+        const { stdout } = await exec('pm2 list --no-color');
+        console.log(stdout);
+        
+        console.log('\n💡 Use "pm2 monit" for real-time monitoring');
+        console.log('💡 Use "pm2 logs" for live logs');
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
+      });
+    } catch (error) {
+      await this.setup.handleError('pm2-status', error);
+    }
+  }
+
+  /**
+   * Show PM2 logs with timeout
+   */
+  async showPM2Logs() {
+    try {
+      const { logDuration } = await inquirer.prompt({
+        type: 'list',
+        name: 'logDuration',
+        message: 'How long to show logs?',
+        loop: false,
+        choices: [
+          '1. 30 seconds',
+          '2. 1 minute',
+          '3. 5 minutes',
+          '4. Until stopped (Ctrl+C)',
+          '5. Go Back'
+        ]
+      });
+
+      const selected = parseInt(logDuration.split('.')[0]);
+
+      if (selected === 5) {
+        return this.monitorProcesses();
+      }
+
+      let duration = 0;
+      switch(selected) {
+        case 1: duration = 30; break;
+        case 2: duration = 60; break;
+        case 3: duration = 300; break;
+        case 4: duration = 0; break; // 0 means until stopped
+      }
+
+      await this.setup.safety.safeExecute('pm2-logs', {
+        platform: this.platform,
+        duration
+      }, async () => {
+        console.log('📋 Showing PM2 logs...');
+        if (duration > 0) {
+          console.log(`⏱️  Will show logs for ${duration} seconds`);
+        } else {
+          console.log('⏱️  Press Ctrl+C to stop showing logs');
+        }
+
+        const { exec } = require('child-process-promise');
+        
+        if (duration > 0) {
+          // Show logs for specific duration
+          const logProcess = exec('pm2 logs --lines 100');
+          
+          // Set timeout
+          setTimeout(() => {
+            logProcess.childProcess.kill('SIGINT');
+            console.log('\n✅ Log viewing completed');
+          }, duration * 1000);
+          
+          try {
+            await logProcess;
+          } catch (error) {
+            if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
+              console.log('✅ Log viewing stopped');
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          // Show logs until Ctrl+C
+          const logProcess = exec('pm2 logs --lines 100');
+          
+          // Store original SIGINT handler
+          const originalSigintHandler = process.listeners('SIGINT').slice();
+          process.removeAllListeners('SIGINT');
+
+          const handleSigint = () => {
+            console.log('\n🛑 Stopping log viewing...');
+            logProcess.childProcess.kill('SIGINT');
+            
+            // Restore original handlers
+            process.removeAllListeners('SIGINT');
+            originalSigintHandler.forEach(handler => process.on('SIGINT', handler));
+            
+            console.log('✅ Log viewing stopped');
+            setTimeout(() => {
+              this.manageProcesses();
+            }, 100);
+          };
+
+          process.on('SIGINT', handleSigint);
+
+          try {
+            await logProcess;
+          } catch (error) {
+            if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
+              console.log('✅ Log viewing stopped by user');
+            } else {
+              throw error;
+            }
+          }
+        }
+        
+        return {
+          success: true,
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
+      });
+    } catch (error) {
+      await this.setup.handleError('pm2-logs', error);
+    }
   }
 
   /**

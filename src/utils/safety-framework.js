@@ -267,6 +267,15 @@ class SafetyFramework {
         platform: Joi.string().valid('linux', 'darwin', 'win32').required()
       }),
 
+      'pm2-status': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required()
+      }),
+
+      'pm2-logs': Joi.object({
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required(),
+        duration: Joi.number().integer().min(0).optional()
+      }),
+
       // Nginx operations
       'nginx-download': Joi.object({
         version: Joi.string().optional(),
@@ -995,6 +1004,11 @@ class SafetyFramework {
       case 'project-clone':
         await this.validateProjectCloneResult(result);
         break;
+      case 'pm2-monitor-processes':
+      case 'pm2-status':
+      case 'pm2-logs':
+        await this.validatePM2Result(result);
+        break;
       default:
         // Generic validation
         if (!result || typeof result !== 'object') {
@@ -1030,6 +1044,29 @@ class SafetyFramework {
     }
 
     logger.info('✅ Project clone result validated successfully');
+  }
+
+  /**
+   * Validate PM2 operation result
+   */
+  async validatePM2Result(result) {
+    if (!result || typeof result !== 'object') {
+      throw new Error('Invalid PM2 operation result');
+    }
+
+    if (!result.success) {
+      throw new Error('PM2 operation failed');
+    }
+
+    if (!result.platform) {
+      throw new Error('Missing platform information');
+    }
+
+    if (!result.timestamp) {
+      throw new Error('Missing timestamp information');
+    }
+
+    logger.info('✅ PM2 operation result validated successfully');
   }
 
   /**
