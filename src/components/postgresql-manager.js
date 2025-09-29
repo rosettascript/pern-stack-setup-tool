@@ -1493,17 +1493,25 @@ class PostgreSQLManager {
 
       console.log(`🔧 Installing extension '${extensionName}' in database '${dbName}'...`);
 
+      // Clear authentication cache to ensure we use the latest quoted command
+      this.clearAuthCache();
+
       // Quote extension name if it contains hyphens or special characters
       const quotedExtensionName = extensionName.includes('-') || extensionName.includes('.') 
         ? `"${extensionName}"` 
         : extensionName;
       
-      let installCommand;
+      // Create the SQL command with proper quoting
+      let sqlCommand;
       if (version) {
-        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName} VERSION '${version}';"`;
+        sqlCommand = `CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName} VERSION '${version}';`;
       } else {
-        installCommand = `psql -d ${dbName} -c "CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};"`;
+        sqlCommand = `CREATE EXTENSION IF NOT EXISTS ${quotedExtensionName};`;
       }
+      
+      // Use single quotes for the outer shell to avoid nested quote issues
+      const installCommand = `psql -d ${dbName} -c '${sqlCommand}'`;
+
 
       // Add loading spinner for extension installation
       const installSpinner = ora(`Installing extension '${extensionName}'...`).start();
