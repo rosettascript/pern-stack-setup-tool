@@ -295,6 +295,11 @@ class PM2Manager {
       let projectDir;
       try {
         projectDir = await this.projectDiscovery.selectProject('Select project for PM2 configuration:');
+        
+        if (projectDir === 'GO_BACK') {
+          return this.showInterface();
+        }
+        
         console.log(`📁 Selected project: ${projectDir}`);
       } catch (error) {
         if (error.message === 'User chose to go back') {
@@ -685,6 +690,11 @@ class PM2Manager {
     try {
       // Let user select project for PM2 process management
       const projectDir = await this.projectDiscovery.selectProject('Select project to start PM2 process:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.manageProcesses();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
@@ -711,6 +721,11 @@ class PM2Manager {
     try {
       // Let user select project for PM2 process management
       const projectDir = await this.projectDiscovery.selectProject('Select project to stop PM2 process:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.manageProcesses();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
@@ -737,6 +752,11 @@ class PM2Manager {
     try {
       // Let user select project for PM2 process management
       const projectDir = await this.projectDiscovery.selectProject('Select project to restart PM2 process:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.manageProcesses();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');
@@ -763,6 +783,11 @@ class PM2Manager {
     try {
       // Let user select project for PM2 process management
       const projectDir = await this.projectDiscovery.selectProject('Select project to delete PM2 process:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.manageProcesses();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const ecosystemPath = path.join(projectDir, 'ecosystem.config.js');

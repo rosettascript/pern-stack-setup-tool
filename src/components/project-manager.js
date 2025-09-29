@@ -75,12 +75,14 @@ class ProjectManager {
           '1. Downloads folder: C:\\Users\\user\\Downloads',
           '2. Documents folder: C:\\Users\\user\\Documents',
           '3. Generate Projects folder: C:\\Users\\user\\Projects',
-          '4. Custom location'
+          '4. Custom location',
+          '5. Go Back'
         ] : [
           '1. Downloads folder: /home/user/Downloads',
           '2. Documents folder: /home/user/Documents',
           '3. Generate Projects folder: /home/user/Projects',
-          '4. Custom location'
+          '4. Custom location',
+          '5. Go Back'
         ]
       });
 
@@ -112,6 +114,8 @@ class ProjectManager {
           });
           projectPath = customPath;
           break;
+        case 5:
+          return this.showInterface();
       }
 
       // Get project name
