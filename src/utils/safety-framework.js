@@ -353,11 +353,21 @@ class SafetyFramework {
       'nginx-reload': Joi.object({}),
 
       // Test operations
-      'setup-jest': Joi.object({}),
-      'setup-supertest': Joi.object({}),
-      'setup-cypress': Joi.object({}),
-      'setup-newman': Joi.object({}),
-      'setup-artillery': Joi.object({}),
+      'setup-jest': Joi.object({
+        projectDir: Joi.string().min(1).max(500).required()
+      }),
+      'setup-supertest': Joi.object({
+        projectDir: Joi.string().min(1).max(500).required()
+      }),
+      'setup-cypress': Joi.object({
+        projectDir: Joi.string().min(1).max(500).required()
+      }),
+      'setup-newman': Joi.object({
+        projectDir: Joi.string().min(1).max(500).required()
+      }),
+      'setup-artillery': Joi.object({
+        projectDir: Joi.string().min(1).max(500).required()
+      }),
 
       // Security operations
       'security-scan': Joi.object({
