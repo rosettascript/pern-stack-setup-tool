@@ -376,12 +376,13 @@ class PrivilegeValidator {
    * Check if operation requires sudo
    */
   requiresSudo(operation) {
-    // Exclude dependency installation operations from sudo requirements
+    // Exclude dependency installation and project operations from sudo requirements
     const dependencyOperations = [
       'client-deps-install',
       'server-deps-install',
       'template-deps-install',
-      'deps-install'
+      'deps-install',
+      'project-clone'
     ];
 
     // If it's a dependency operation, don't require sudo
