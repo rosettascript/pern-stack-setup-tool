@@ -479,8 +479,8 @@ class SafetyFramework {
       await this.validateMacOSRequirements();
     }
 
-    // Check permissions
-    await this.validatePermissions();
+    // Check permissions (skip sudo check during initialization)
+    await this.validatePermissions(null);
 
     logger.info('✅ System requirements validated');
     return systemInfo;
@@ -577,7 +577,7 @@ class SafetyFramework {
   /**
    * Validate user permissions
    */
-  async validatePermissions() {
+  async validatePermissions(operation = null) {
     const homeDir = os.homedir();
     const testFile = path.join(homeDir, '.pern-setup-test');
 
@@ -588,8 +588,7 @@ class SafetyFramework {
 
       // Test sudo access (with timeout) - only if sudo is actually needed
       // Skip sudo check for operations that don't require it
-      const currentOperation = this.getCurrentOperation();
-      if (currentOperation && this.privilegeValidator.requiresSudo(currentOperation)) {
+      if (operation && this.privilegeValidator.requiresSudo(operation)) {
         try {
           await Promise.race([
             this.secureExecutor.executeValidated('sudo -n true'),
@@ -902,6 +901,9 @@ class SafetyFramework {
       const privilegeRequirements = this.privilegeValidator.getPrivilegeRequirements(operation);
       await this.privilegeValidator.validatePrivileges(operation, privilegeRequirements);
       this.safetyMetrics.privilegeChecks++;
+
+      // Validate permissions for this specific operation
+      await this.validatePermissions(operation);
 
       // Pre-operation backup (if applicable)
       if (parameters.backup && parameters.targetPath) {
