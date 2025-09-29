@@ -185,6 +185,10 @@ class TestManager {
 
       // Create test setup file
       const setupSpinner = ora('📝 Creating test setup files...').start();
+      
+      // Ensure tests directory exists
+      await fs.ensureDir(path.join(projectPath, 'tests'));
+      
       const setupContent = `
 // Jest setup file
 require('dotenv').config({ path: '.env.test' });
@@ -207,6 +211,10 @@ afterAll(async () => {
 
       // Create sample test
       const testSpinner = ora('📝 Creating sample test files...').start();
+      
+      // Ensure tests/unit directory exists
+      await fs.ensureDir(path.join(projectPath, 'tests', 'unit'));
+      
       const sampleTest = `
 const request = require('supertest');
 const app = require('../server/src/app');
@@ -259,6 +267,10 @@ describe('API Tests', () => {
 
       // Create integration test
       const testSpinner = ora('📝 Creating integration test files...').start();
+      
+      // Ensure tests/integration directory exists
+      await fs.ensureDir(path.join(projectPath, 'tests', 'integration'));
+      
       const integrationTest = `
 const request = require('supertest');
 const app = require('../server/src/app');
@@ -360,6 +372,10 @@ describe('Integration Tests', () => {
 
       // Create E2E test
       const testSpinner = ora('📝 Creating E2E test files...').start();
+      
+      // Ensure cypress/e2e directory exists
+      await fs.ensureDir(path.join(projectPath, 'cypress', 'e2e'));
+      
       const e2eTest = `
 describe('E2E Tests', () => {
   beforeEach(() => {
@@ -429,6 +445,10 @@ describe('E2E Tests', () => {
 
       // Create Postman collection
       const collectionSpinner = ora('📝 Creating Postman collection...').start();
+      
+      // Ensure tests/api directory exists
+      await fs.ensureDir(path.join(projectPath, 'tests', 'api'));
+      
       const collection = {
         info: {
           name: 'PERN API Tests',
@@ -510,6 +530,10 @@ describe('E2E Tests', () => {
 
       // Create Artillery configuration
       const configSpinner = ora('📝 Creating Artillery configuration...').start();
+      
+      // Ensure tests/performance directory exists
+      await fs.ensureDir(path.join(projectPath, 'tests', 'performance'));
+      
       const artilleryConfig = {
         config: {
           target: 'http://localhost:5000',
