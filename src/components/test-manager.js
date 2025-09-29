@@ -110,6 +110,8 @@ class TestManager {
 
       this.setup.state.completedComponents.add('tests');
       console.log(`✅ Testing frameworks configured for project: ${path.basename(projectDir)}`);
+      
+      return this.showInterface();
 
     } catch (error) {
       await this.setup.handleError('testing-framework-setup', error);
@@ -883,6 +885,8 @@ describe('E2E Tests', () => {
       
       allTestsSpinner.succeed('✅ All test suites completed');
       console.log('✅ All tests completed');
+      
+      return this.showInterface();
     } catch (error) {
       console.error('❌ Test suite failed:', error.message);
       throw error;
@@ -939,6 +943,8 @@ describe('E2E Tests', () => {
         case 6:
           return this.showInterface();
       }
+      
+      return this.showInterface();
 
     } catch (error) {
       await this.setup.handleError('ci-configuration', error);
