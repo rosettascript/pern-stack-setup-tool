@@ -971,12 +971,44 @@ class SafetyFramework {
       case 'setup-artillery':
         await this.validateTestFrameworkResult(result);
         break;
+      case 'project-clone':
+        await this.validateProjectCloneResult(result);
+        break;
       default:
         // Generic validation
         if (!result || typeof result !== 'object') {
           throw new Error('Invalid operation result');
         }
     }
+  }
+
+  /**
+   * Validate project clone result
+   */
+  async validateProjectCloneResult(result) {
+    if (!result || typeof result !== 'object') {
+      throw new Error('Invalid project clone result');
+    }
+
+    if (!result.success) {
+      throw new Error('Project clone operation failed');
+    }
+
+    if (!result.repositoryUrl || !result.cloneLocation) {
+      throw new Error('Missing required clone information');
+    }
+
+    // Verify the cloned directory exists
+    try {
+      const fs = require('fs-extra');
+      if (!await fs.pathExists(result.cloneLocation)) {
+        throw new Error('Cloned directory does not exist');
+      }
+    } catch (error) {
+      logger.warn('Could not verify cloned directory:', error.message);
+    }
+
+    logger.info('✅ Project clone result validated successfully');
   }
 
   /**

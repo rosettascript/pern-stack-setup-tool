@@ -656,6 +656,13 @@ For issues and questions:
         await this.configureClonedProject(clonePath);
 
         console.log(`✅ Project cloned successfully to: ${clonePath}`);
+        
+        return {
+          success: true,
+          repositoryUrl: repoUrl,
+          cloneLocation: clonePath,
+          message: 'Project cloned successfully'
+        };
       });
 
     } catch (error) {
