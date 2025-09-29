@@ -177,9 +177,12 @@ class ProjectDiscovery {
       short: 'Custom Path'
     });
 
+    // Add separator before Go back
+    choices.push(new inquirer.Separator('──────────────'));
+
     // Add option to go back
     choices.push({
-      name: '← Go back',
+      name: 'Go back',
       value: 'go_back',
       short: 'Go Back'
     });

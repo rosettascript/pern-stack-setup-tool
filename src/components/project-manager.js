@@ -35,12 +35,21 @@ class ProjectManager {
           message: 'Folder Structure Section',
           loop: false,
           choices: [
-            '1. Create Project',
-            '2. Clone Existing Project',
-            '3. Go back'
-          ]
+              '1. Create Project',
+              '2. Clone Existing Project',
+              new inquirer.Separator(),
+              {
+                name: 'Go back',
+                value: 'go_back',
+                checked: false
+              }
+            ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -51,8 +60,6 @@ class ProjectManager {
         case 2:
           await this.cloneProjectInterface();
           break;
-        case 3:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -82,11 +89,21 @@ class ProjectManager {
           '2. Documents folder: /home/user/Documents',
           '3. Generate Projects folder: /home/user/Projects',
           '4. Custom location',
-          '5. Go Back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
 
       let projectPath;
+
+      if (location === 'go_back') {
+        return this.showInterface();
+      }
+
       const selected = parseInt(location.split('.')[0]);
 
       switch(selected) {
@@ -114,8 +131,6 @@ class ProjectManager {
           });
           projectPath = customPath;
           break;
-        case 5:
-          return this.showInterface();
       }
 
       // Get project name
@@ -137,11 +152,16 @@ class ProjectManager {
           '2. Backend only (Node + PostgreSQL)',
           '3. Frontend only (React)',
           '4. Microservices',
-          '5. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
 
-      if (projectType.includes('5. Go back')) {
+      if (projectType === 'go_back') {
         return this.showInterface();
       }
 

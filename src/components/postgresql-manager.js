@@ -43,10 +43,19 @@ class PostgreSQLManager {
             '4. List Databases',
             '5. List Users',
             '6. Delete Database',
-            '7. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -69,8 +78,6 @@ class PostgreSQLManager {
         case 6:
           await this.deleteDatabase();
           break;
-        case 7:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -256,10 +263,19 @@ class PostgreSQLManager {
             '3. Remove extension',
             '4. List installed extensions',
             '5. Setup authentication (if having permission issues)',
-            '6. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -279,8 +295,6 @@ class PostgreSQLManager {
         case 5:
           await this.setupAuthentication();
           break;
-        case 6:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -302,10 +316,19 @@ class PostgreSQLManager {
         choices: [
             '1. Automatic setup',
             '2. Manual setup',
-            '3. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -316,8 +339,6 @@ class PostgreSQLManager {
         case 2:
           await this.manualSetup();
           break;
-        case 3:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -1610,9 +1631,19 @@ class PostgreSQLManager {
           '2. Test current authentication methods',
           '3. Setup postgres user password',
           '4. Grant privileges to current user',
-          '5. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       }]);
+
+      if (choice === 'go_back') {
+        await this.extensionInterface();
+        return;
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -1629,9 +1660,6 @@ class PostgreSQLManager {
         case 4:
           await this.grantUserPrivileges();
           break;
-        case 5:
-          await this.extensionInterface();
-          return;
       }
 
     } catch (error) {

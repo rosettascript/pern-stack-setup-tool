@@ -32,6 +32,7 @@ const NginxManager = require('./components/nginx-manager');
 const TestManager = require('./components/test-manager');
 const SecurityManager = require('./components/security-manager');
 const ComplianceManager = require('./components/compliance-manager');
+const ToolManager = require('./components/tool-manager');
 
 // Import advanced features
 const TemplateEngine = require('./features/template-engine');
@@ -59,6 +60,7 @@ class PERNSetupTool {
       pm2: new PM2Manager(this),
       nginx: new NginxManager(this),
       tests: new TestManager(this),
+      tools: new ToolManager(this),
       security: new SecurityManager(this),
       compliance: new ComplianceManager(this)
     };
@@ -176,9 +178,10 @@ class PERNSetupTool {
             '5. PM2 (Linux/macOS only)',
             '6. Nginx (Linux/macOS only)',
             '7. Tests',
-            '8. Configuration',
-            '9. Advanced Features',
-            '10. End'
+            '8. Tool Installation',
+            '9. Configuration',
+            '10. Advanced Features',
+            '11. End'
           ]
         }
       ]);
@@ -200,9 +203,10 @@ class PERNSetupTool {
         case 5: await this.components.pm2.showInterface(); break;
         case 6: await this.components.nginx.showInterface(); break;
         case 7: await this.components.tests.showInterface(); break;
-        case 8: await this.components.compliance.showInterface(); break;
-        case 9: await this.showAdvancedFeaturesInterface(); break;
-        case 10: await this.endInterface(); break;
+        case 8: await this.components.tools.showInterface(); break;
+        case 9: await this.components.compliance.showInterface(); break;
+        case 10: await this.showAdvancedFeaturesInterface(); break;
+        case 11: await this.endInterface(); break;
       }
 
     } catch (error) {
@@ -234,12 +238,13 @@ class PERNSetupTool {
     const { continueChoice } = await inquirer.prompt({
       type: 'list',
       name: 'continueChoice',
-      message: 'What would you like to do?',
+      message: 'Windows Compatibility Section',
       loop: false,
         choices: [
-        '1. Go back to main menu',
+        '1. Go back',
         '2. Show Windows alternatives',
-        '3. Continue anyway (may not work)'
+        new inquirer.Separator('──────────────'),
+        'Continue anyway (may not work)'
       ]
     });
 
@@ -299,7 +304,7 @@ class PERNSetupTool {
       const { featureChoice } = await inquirer.prompt({
         type: 'list',
         name: 'featureChoice',
-        message: 'Advanced Features:',
+        message: 'Advanced Features Section',
         loop: false,
         choices: [
           '1. Project Templates',
@@ -311,42 +316,46 @@ class PERNSetupTool {
           '7. Microservices Setup',
           '8. Scalability Configuration',
           '9. Interactive Documentation',
-          '10. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      // Handle "Go back" option first
+      if (featureChoice === 'Go back') {
+        return this.showMainInterface();
+      }
 
       const selected = parseInt(featureChoice.split('.')[0]);
 
       switch(selected) {
-        case 1: 
-          await this.features.templates.showInterface(); 
+        case 1:
+          await this.features.templates.showInterface();
           return this.showAdvancedFeaturesInterface();
-        case 2: 
-          await this.showPerformanceInterface(); 
+        case 2:
+          await this.showPerformanceInterface();
           return this.showAdvancedFeaturesInterface();
-        case 3: 
-          await this.components.security.showInterface(); 
+        case 3:
+          await this.components.security.showInterface();
           return this.showAdvancedFeaturesInterface();
-        case 4: 
-          await this.components.compliance.showInterface(); 
+        case 4:
+          await this.components.compliance.showInterface();
           return this.showAdvancedFeaturesInterface();
-        case 5: 
-          await this.features.analytics.showInterface(); 
+        case 5:
+          await this.features.analytics.showInterface();
           return this.showAdvancedFeaturesInterface();
-        case 6: 
-          await this.features.plugins.showInterface(); 
+        case 6:
+          await this.features.plugins.showInterface();
           return this.showAdvancedFeaturesInterface();
-        case 7: 
-          await this.showMicroservicesInterface(); 
+        case 7:
+          await this.showMicroservicesInterface();
           return this.showAdvancedFeaturesInterface();
-        case 8: 
-          await this.showScalabilityInterface(); 
+        case 8:
+          await this.showScalabilityInterface();
           return this.showAdvancedFeaturesInterface();
-        case 9: 
-          await this.showDocumentationInterface(); 
+        case 9:
+          await this.showDocumentationInterface();
           return this.showAdvancedFeaturesInterface();
-        case 10: 
-          return this.showMainInterface();
       }
 
     } catch (error) {
@@ -361,7 +370,7 @@ class PERNSetupTool {
     const { optimizationChoice } = await inquirer.prompt({
       type: 'list',
       name: 'optimizationChoice',
-      message: 'Performance Optimization Options:',
+      message: 'Performance Optimization Section',
       loop: false,
         choices: [
         '1. Enable intelligent caching',
@@ -369,9 +378,15 @@ class PERNSetupTool {
         '3. Setup resource monitoring',
         '4. Optimize for current system',
         '5. View performance analytics',
-        '6. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
+
+    // Handle "Go back" option first
+    if (optimizationChoice === 'Go back') {
+      return this.showAdvancedFeaturesInterface();
+    }
 
     switch(parseInt(optimizationChoice.split('.')[0])) {
       case 1:
@@ -390,8 +405,6 @@ class PERNSetupTool {
       case 5:
         await this.showPerformanceAnalytics();
         return this.showPerformanceInterface();
-      case 6:
-        return this.showAdvancedFeaturesInterface();
     }
   }
 
@@ -480,14 +493,15 @@ class PERNSetupTool {
     const { setupType } = await inquirer.prompt({
       type: 'list',
       name: 'setupType',
-      message: `Microservices setup type for: ${this.config.get('project.name', 'Current Project')}`,
+      message: `Microservices Setup Section for: ${this.config.get('project.name', 'Current Project')}`,
       loop: false,
         choices: [
         '1. Basic service mesh',
         '2. Full microservices architecture',
         '3. Kubernetes deployment',
         '4. Change Project',
-        '5. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -935,7 +949,7 @@ class PERNSetupTool {
     const { scalabilityChoice } = await inquirer.prompt({
       type: 'list',
       name: 'scalabilityChoice',
-      message: `Scalability options for: ${this.config.get('project.name', 'Current Project')}`,
+      message: `Scalability Configuration Section for: ${this.config.get('project.name', 'Current Project')}`,
       loop: false,
         choices: [
         '1. Configure auto-scaling',
@@ -943,9 +957,15 @@ class PERNSetupTool {
         '3. Database scaling',
         '4. Performance monitoring',
         '5. Change Project',
-        '6. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
+
+    // Handle "Go back" option first
+    if (scalabilityChoice === 'Go back') {
+      return this.showAdvancedFeaturesInterface();
+    }
 
     switch(parseInt(scalabilityChoice.split('.')[0])) {
       case 1:
@@ -963,8 +983,6 @@ class PERNSetupTool {
       case 5:
         await this.selectProjectForScalability();
         return this.showScalabilityInterface();
-      case 6:
-        return this.showAdvancedFeaturesInterface();
     }
   }
 
@@ -1049,18 +1067,19 @@ class PERNSetupTool {
     const { lbType } = await inquirer.prompt({
       type: 'list',
       name: 'lbType',
-      message: 'Load balancing type:',
+      message: 'Load Balancing Setup Section',
       loop: false,
         choices: [
         '1. Application Load Balancing (HTTP/HTTPS)',
         '2. Network Load Balancing (TCP/UDP)',
         '3. Database Load Balancing',
         '4. Microservices Load Balancing',
-        '5. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
-    if (lbType.includes('5. Go back')) {
+    if (lbType === 'Go back') {
       return this.showScalabilityInterface();
     }
 
@@ -1484,14 +1503,15 @@ class PERNSetupTool {
     const { scalingType } = await inquirer.prompt({
       type: 'list',
       name: 'scalingType',
-      message: 'Database scaling approach:',
+      message: 'Database Scaling Section',
       loop: false,
         choices: [
         '1. Vertical scaling (increase resources)',
         '2. Horizontal scaling (read replicas)',
         '3. Sharding configuration',
         '4. Connection pooling setup',
-        '5. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -1956,7 +1976,7 @@ client_idle_limit = 0
     const { docChoice } = await inquirer.prompt({
       type: 'list',
       name: 'docChoice',
-      message: 'Interactive Documentation:',
+      message: 'Interactive Documentation Section',
       loop: false,
         choices: [
         '1. View setup guide',
@@ -1965,7 +1985,8 @@ client_idle_limit = 0
         '4. Troubleshooting guide',
         '5. API documentation',
         '6. Start documentation server',
-        '7. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -2030,7 +2051,7 @@ client_idle_limit = 0
     const { exampleCategory } = await inquirer.prompt({
       type: 'list',
       name: 'exampleCategory',
-      message: 'Choose an example category:',
+      message: 'Interactive Examples Section',
       loop: false,
         choices: [
         '1. Basic PERN Setup',
@@ -2039,7 +2060,8 @@ client_idle_limit = 0
         '4. API Development',
         '5. Deployment & Scaling',
         '6. Testing & Quality Assurance',
-        '7. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -2080,14 +2102,15 @@ client_idle_limit = 0
     const { example } = await inquirer.prompt({
       type: 'list',
       name: 'example',
-      message: 'Choose a basic setup example:',
+      message: 'Basic PERN Setup Examples Section',
       loop: false,
         choices: [
         '1. Hello World PERN Application',
         '2. Project Structure Setup',
         '3. Environment Configuration',
         '4. Basic Docker Setup',
-        '5. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -3127,7 +3150,7 @@ docker-compose -f docker-compose.prod.yml up -d
     const { docAction } = await inquirer.prompt({
       type: 'list',
       name: 'docAction',
-      message: 'API Documentation Options:',
+      message: 'API Documentation Section',
       loop: false,
         choices: [
         '1. Generate OpenAPI/Swagger documentation',
@@ -3135,7 +3158,8 @@ docker-compose -f docker-compose.prod.yml up -d
         '3. Generate API blueprint',
         '4. View existing documentation',
         '5. Setup API documentation server',
-        '6. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -4008,13 +4032,14 @@ Delete a user account.
     const { serverType } = await inquirer.prompt({
       type: 'list',
       name: 'serverType',
-      message: 'Documentation server type:',
+      message: 'API Documentation Server Section',
       loop: false,
         choices: [
         'Swagger UI (OpenAPI)',
         'Postman Mock Server',
         'Redoc (OpenAPI)',
         'Stoplight (OpenAPI)',
+        new inquirer.Separator('──────────────'),
         'Go back'
       ]
     });
@@ -4117,14 +4142,15 @@ Delete a user account.
     const { serverType } = await inquirer.prompt({
       type: 'list',
       name: 'serverType',
-      message: 'Documentation server type:',
+      message: 'Documentation Server Section',
       loop: false,
         choices: [
         '1. Full Documentation Hub (Recommended)',
         '2. API Documentation Only',
         '3. Setup Guide Server',
         '4. Troubleshooting Assistant',
-        '5. Go back'
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
 
@@ -4774,32 +4800,51 @@ Delete a user account.
    * End interface - completion and summary
    */
   async endInterface() {
-    const { choice } = await inquirer.prompt({
-      type: 'list',
-      name: 'choice',
-      message: 'Setup Summary',
-      loop: false,
+    try {
+      const { choice } = await inquirer.prompt({
+        type: 'list',
+        name: 'choice',
+        message: 'Setup Summary Section',
+        loop: false,
         choices: [
-        '1. View setup summary',
-        '2. Export configuration',
-        '3. Start all services',
-        '4. Exit'
-      ]
-    });
+          '1. View setup summary',
+          '2. Export configuration',
+          '3. Start all services',
+          new inquirer.Separator('──────────────'),
+          'Exit'
+        ]
+      });
 
-    switch(parseInt(choice.split('.')[0])) {
-      case 1:
-        await this.displaySetupSummary();
-        break;
-      case 2:
-        await this.exportConfiguration();
-        break;
-      case 3:
-        await this.startAllServices();
-        break;
-      case 4:
-        await this.exit();
-        break;
+      // Handle Exit immediately
+      if (choice === 'Exit' || choice.includes('Exit')) {
+        console.log(chalk.green('\n👋 Thank you for using PERN Setup Tool!'));
+        console.log(chalk.gray('Happy coding! 🚀'));
+
+        // Force exit after a short delay to ensure message is displayed
+        setTimeout(() => {
+          process.exit(0);
+        }, 100);
+        return;
+      }
+
+      const selected = parseInt(choice.split('.')[0]);
+
+      switch(selected) {
+        case 1:
+          await this.displaySetupSummary();
+          break;
+        case 2:
+          await this.exportConfiguration();
+          break;
+        case 3:
+          await this.startAllServices();
+          break;
+      }
+    } catch (error) {
+      // Force exit on any error
+      console.log(chalk.green('\n👋 Thank you for using PERN Setup Tool!'));
+      console.log(chalk.gray('Happy coding! 🚀'));
+      process.exit(0);
     }
   }
 

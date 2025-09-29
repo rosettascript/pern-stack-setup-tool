@@ -47,17 +47,22 @@ class ComplianceManager {
           message: `Configuration Section for: ${this.config.get('project.name', 'Current Project')}`,
           loop: false,
           choices: [
-            '1. Environment Variables',
-            '2. Database Configuration',
-            '3. API Configuration',
-            '4. Authentication Configuration',
-            '5. Security Settings',
-            '6. Logging Configuration',
-            '7. Change Project',
-            '8. Go back'
-          ]
+              '1. Environment Variables',
+              '2. Database Configuration',
+              '3. API Configuration',
+              '4. Authentication Configuration',
+              '5. Security Settings',
+              '6. Logging Configuration',
+              '7. Change Project',
+              new inquirer.Separator('──────────────'),
+              'Go back'
+            ]
         }
       ]);
+
+      if (choice === 'Go back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -82,9 +87,7 @@ class ComplianceManager {
           break;
         case 7:
           await this.selectProject();
-          return this.showInterface();
-        case 8:
-          return this.setup.showMainInterface();
+          break;
       }
 
     } catch (error) {
@@ -99,6 +102,12 @@ class ComplianceManager {
     try {
       // Use the enhanced project discovery system
       const projectDir = await this.projectDiscovery.selectProject('Select project to configure:');
+
+      // Handle "Go back" option from project discovery
+      if (projectDir === 'GO_BACK') {
+        return this.setup.showMainInterface();
+      }
+
       console.log(`📁 Selected project: ${projectDir}`);
 
       this.config.set('project.location', projectDir);
@@ -281,7 +290,7 @@ class ComplianceManager {
       const { environment } = await inquirer.prompt({
         type: 'list',
         name: 'environment',
-        message: 'Environment Variables Setup',
+        message: 'Environment Variables Section',
         loop: false,
         choices: [
           '1. Development environment',
@@ -289,9 +298,14 @@ class ComplianceManager {
           '3. Testing environment',
           '4. Create .env file',
           '5. Validate existing .env',
-          '6. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (environment === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(environment.split('.')[0]);
 
@@ -311,8 +325,6 @@ class ComplianceManager {
         case 5:
           await this.validateEnvFile();
           break;
-        case 6:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -487,16 +499,21 @@ class ComplianceManager {
       const { dbChoice } = await inquirer.prompt({
         type: 'list',
         name: 'dbChoice',
-        message: 'Database Configuration',
+        message: 'Database Configuration Section',
         loop: false,
         choices: [
           '1. Configure connection settings',
           '2. Setup database security',
           '3. Configure performance settings',
           '4. Setup backup configuration',
-          '5. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (dbChoice === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(dbChoice.split('.')[0]);
 
@@ -513,8 +530,6 @@ class ComplianceManager {
         case 4:
           await this.configureDatabaseBackup();
           break;
-        case 5:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -687,16 +702,21 @@ class ComplianceManager {
       const { apiChoice } = await inquirer.prompt({
         type: 'list',
         name: 'apiChoice',
-        message: 'API Configuration',
+        message: 'API Configuration Section',
         loop: false,
         choices: [
           '1. Configure API settings',
           '2. Setup API versioning',
           '3. Configure rate limiting',
           '4. Setup API documentation',
-          '5. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (apiChoice === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(apiChoice.split('.')[0]);
 
@@ -713,8 +733,6 @@ class ComplianceManager {
         case 4:
           await this.configureAPIDocumentation();
           break;
-        case 5:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -879,7 +897,7 @@ class ComplianceManager {
       const { authChoice } = await inquirer.prompt({
         type: 'list',
         name: 'authChoice',
-        message: 'Authentication Configuration',
+        message: 'Authentication Configuration Section',
         loop: false,
         choices: [
           '1. Basic Authentication',
@@ -887,9 +905,14 @@ class ComplianceManager {
           '3. OAuth Configuration',
           '4. JWT Configuration',
           '5. Skip authentication',
-          '6. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (authChoice === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(authChoice.split('.')[0]);
 
@@ -909,8 +932,6 @@ class ComplianceManager {
         case 5:
           console.log('ℹ️  Authentication setup skipped');
           break;
-        case 6:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -933,6 +954,7 @@ class ComplianceManager {
           '1. Email + Password',
           '2. Username + Password',
           '3. Phone + Password',
+          new inquirer.Separator('──────────────'),
           '4. Go back'
         ]
       });
@@ -1135,6 +1157,7 @@ class ComplianceManager {
           '1. Two-tier (User/Admin)',
           '2. Three-tier (User/Moderator/Admin)',
           '3. Custom roles',
+          new inquirer.Separator('──────────────'),
           '4. Go back'
         ]
       });
@@ -1495,7 +1518,7 @@ class ComplianceManager {
       const { securityChoice } = await inquirer.prompt({
         type: 'list',
         name: 'securityChoice',
-        message: 'Security Settings',
+        message: 'Security Settings Section',
         loop: false,
         choices: [
           '1. CORS settings',
@@ -1505,9 +1528,14 @@ class ComplianceManager {
           '5. API key management',
           '6. Two-factor authentication',
           '7. Password reset flow',
-          '8. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (securityChoice === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(securityChoice.split('.')[0]);
 
@@ -1533,8 +1561,6 @@ class ComplianceManager {
         case 7:
           await this.configurePasswordReset();
           break;
-        case 8:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -1786,7 +1812,7 @@ class ComplianceManager {
       const { loggingChoice } = await inquirer.prompt({
         type: 'list',
         name: 'loggingChoice',
-        message: 'Logging Configuration',
+        message: 'Logging Configuration Section',
         loop: false,
         choices: [
           '1. Application logs (Winston)',
@@ -1795,9 +1821,14 @@ class ComplianceManager {
           '4. Error tracking (Sentry)',
           '5. Log rotation',
           '6. Centralized logging',
-          '7. Go back'
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
+
+      if (loggingChoice === 'Go back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(loggingChoice.split('.')[0]);
 
@@ -1820,8 +1851,6 @@ class ComplianceManager {
         case 6:
           await this.configureCentralizedLogging();
           break;
-        case 7:
-          return this.showInterface();
       }
 
     } catch (error) {

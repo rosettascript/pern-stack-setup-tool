@@ -39,10 +39,19 @@ class PM2Manager {
             '1. Download PM2',
             '2. Setup PM2',
             '3. Manage Processes',
-            '4. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -56,8 +65,6 @@ class PM2Manager {
         case 3:
           await this.manageProcesses();
           break;
-        case 4:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -127,10 +134,19 @@ class PM2Manager {
             '1. Install PM2 globally',
             '2. Setup PM2 startup script',
             '3. Configure ecosystem file',
-            '4. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -144,8 +160,6 @@ class PM2Manager {
         case 3:
           await this.configureEcosystem();
           break;
-        case 4:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -649,10 +663,19 @@ class PM2Manager {
             '4. Restart project process',
             '5. Delete project process',
             '6. Monitor processes',
-            '7. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -675,8 +698,6 @@ class PM2Manager {
         case 6:
           await this.monitorProcesses();
           break;
-        case 7:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -1251,11 +1272,20 @@ class PM2Manager {
           message: 'What would you like to do?',
           loop: false,
           choices: [
-            '1. Go back to process management',
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            },
             '2. Try monitoring anyway (may show errors)',
             '3. Show PM2 status instead'
           ]
         });
+
+        if (continueChoice === 'go_back') {
+          return this.manageProcesses();
+        }
 
         const selected = parseInt(continueChoice.split('.')[0]);
         switch(selected) {
@@ -1342,7 +1372,7 @@ class PM2Manager {
           loop: false,
           choices: [
             '1. Show PM2 status instead',
-            '2. Go back to process management',
+            '2. Go back',
             '3. Try again'
           ]
         });
@@ -1462,11 +1492,20 @@ class PM2Manager {
           message: 'What would you like to do?',
           loop: false,
           choices: [
-            '1. Go back to monitoring options',
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            },
             '2. Show PM2 status instead',
             '3. Try showing logs anyway (may show errors)'
           ]
         });
+
+        if (logChoice === 'go_back') {
+          return this.monitorProcesses();
+        }
 
         const selected = parseInt(logChoice.split('.')[0]);
         switch(selected) {

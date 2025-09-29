@@ -246,7 +246,7 @@ class PluginManager {
         name: 'pluginChoice',
         message: 'Select plugin to install:',
         loop: false,
-        choices: [...choices, 'Enter plugin name manually', 'Go back']
+        choices: [...choices, 'Enter plugin name manually', new inquirer.Separator('──────────────'), 'Go back']
       });
 
       if (pluginChoice === 'Go back') {
@@ -431,7 +431,7 @@ class PluginManager {
           name: 'choice',
           message: 'Select plugin to remove:',
           loop: false,
-        choices: [...plugins, 'Go back']
+        choices: [...plugins, new inquirer.Separator('──────────────'), 'Go back']
         });
 
         if (choice === 'Go back') {
@@ -495,7 +495,7 @@ class PluginManager {
         name: 'categoryChoice',
         message: 'Select plugin category:',
         loop: false,
-        choices: [...categories.map(c => c.name), 'View all plugins', 'Go back']
+        choices: [...categories.map(c => c.name), 'View all plugins', new inquirer.Separator('──────────────'), 'Go back']
       });
 
       if (categoryChoice === 'Go back') {
@@ -516,7 +516,7 @@ class PluginManager {
         name: 'pluginChoice',
         message: 'Select plugin to view details:',
         loop: false,
-        choices: [...choices, 'Go back']
+        choices: [...choices, new inquirer.Separator('──────────────'), 'Go back']
       });
 
       if (pluginChoice === 'Go back') {

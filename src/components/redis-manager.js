@@ -39,10 +39,19 @@ class RedisManager {
         choices: [
             '1. Download Redis',
             '2. Setup Redis',
-            '3. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -53,8 +62,6 @@ class RedisManager {
         case 2:
           await this.setupInterface();
           break;
-        case 3:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -134,10 +141,19 @@ class RedisManager {
         choices: [
             '1. Automatic setup',
             '2. Manual setup',
-            '3. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -148,8 +164,6 @@ class RedisManager {
         case 2:
           await this.manualSetup();
           break;
-        case 3:
-          return this.showInterface();
       }
 
     } catch (error) {

@@ -39,10 +39,19 @@ class NginxManager {
             '1. Download Nginx',
             '2. Setup Nginx',
             '3. Manage Sites',
-            '4. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -56,8 +65,6 @@ class NginxManager {
         case 3:
           await this.manageSites();
           break;
-        case 4:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -140,10 +147,19 @@ class NginxManager {
             '2. Load balancer setup',
             '3. SSL/TLS configuration',
             '4. Custom configuration',
-            '5. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -160,8 +176,6 @@ class NginxManager {
         case 4:
           await this.setupCustom();
           break;
-        case 5:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -866,10 +880,19 @@ class NginxManager {
             '4. Delete site',
             '5. Test configuration',
             '6. Reload Nginx',
-            '7. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -892,8 +915,6 @@ class NginxManager {
         case 6:
           await this.reloadNginx();
           break;
-        case 7:
-          return this.showInterface();
       }
 
     } catch (error) {

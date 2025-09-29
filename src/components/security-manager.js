@@ -49,10 +49,19 @@ class SecurityManager {
             '4. Generate security report',
             '5. Compliance checking',
             '6. Change Project',
-            '7. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -75,8 +84,6 @@ class SecurityManager {
         case 6:
           await this.selectProject();
           return this.showInterface();
-        case 7:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -566,9 +573,18 @@ class SecurityManager {
           '3. Authorization policies',
           '4. Network security policies',
           '5. Data protection policies',
-          '6. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
+
+      if (policyType === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(policyType.split('.')[0]);
 
@@ -588,8 +604,6 @@ class SecurityManager {
         case 5:
           await this.configureDataProtectionPolicies();
           break;
-        case 6:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -852,15 +866,20 @@ class SecurityManager {
           '2. Daily scans',
           '3. Weekly scans',
           '4. On-demand only',
-          '5. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
 
-      const selected = parseInt(monitoringType.split('.')[0]);
-
-      if (selected === 5) {
+      if (monitoringType === 'go_back') {
         return this.showInterface();
       }
+
+      const selected = parseInt(monitoringType.split('.')[0]);
 
       const monitoringConfig = {
         type: ['continuous', 'daily', 'weekly', 'on-demand'][selected - 1],
@@ -926,15 +945,20 @@ class SecurityManager {
           '4. PCI-DSS',
           '5. ISO 27001',
           '6. NIST Cybersecurity Framework',
-          '7. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
 
-      const selected = parseInt(framework.split('.')[0]);
-
-      if (selected === 7) {
+      if (framework === 'go_back') {
         return this.showInterface();
       }
+
+      const selected = parseInt(framework.split('.')[0]);
 
       const frameworks = ['soc2', 'hipaa', 'gdpr', 'pci-dss', 'iso27001', 'nist'];
       const frameworkId = frameworks[selected - 1];

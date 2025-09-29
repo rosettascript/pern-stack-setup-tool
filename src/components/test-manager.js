@@ -46,10 +46,19 @@ class TestManager {
             '1. Setup Testing Framework',
             '2. Run Tests',
             '3. Configure CI/CD',
-            '4. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -63,8 +72,6 @@ class TestManager {
         case 3:
           await this.configureCI();
           break;
-        case 4:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -624,9 +631,18 @@ describe('E2E Tests', () => {
           '4. API tests (Newman)',
           '5. Performance tests (Artillery)',
           '6. All tests',
-          '7. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
+
+      if (testType === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(testType.split('.')[0]);
 
@@ -649,8 +665,6 @@ describe('E2E Tests', () => {
         case 6:
           await this.runAllTests(projectDir);
           break;
-        case 7:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -918,9 +932,18 @@ describe('E2E Tests', () => {
           '3. Jenkins',
           '4. CircleCI',
           '5. Azure DevOps',
-          '6. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
+
+      if (platform === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(platform.split('.')[0]);
 
@@ -940,8 +963,6 @@ describe('E2E Tests', () => {
         case 5:
           await this.configureAzureDevOps(projectDir);
           break;
-        case 6:
-          return this.showInterface();
       }
       
       return this.showInterface();

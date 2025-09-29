@@ -42,7 +42,7 @@ class TemplateEngine {
         name: 'templateChoice',
         message: 'Select project template:',
         loop: false,
-        choices: [...choices, 'Custom template configuration', 'Browse community templates', 'Go back']
+        choices: [...choices, 'Custom template configuration', 'Browse community templates', new inquirer.Separator('──────────────'), 'Go back']
       });
 
       if (templateChoice === 'Go back') {

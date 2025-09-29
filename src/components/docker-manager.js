@@ -39,10 +39,19 @@ class DockerManager {
         choices: [
             '1. Download Docker',
             '2. Setup Docker',
-            '3. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.setup.showMainInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -53,8 +62,6 @@ class DockerManager {
         case 2:
           await this.setupInterface();
           break;
-        case 3:
-          return this.setup.showMainInterface();
       }
 
     } catch (error) {
@@ -125,10 +132,19 @@ class DockerManager {
         choices: [
             '1. Automatic setup',
             '2. Manual setup',
-            '3. Go back'
+            new inquirer.Separator(),
+            {
+              name: 'Go back',
+              value: 'go_back',
+              checked: false
+            }
           ]
         }
       ]);
+
+      if (choice === 'go_back') {
+        return this.showInterface();
+      }
 
       const selected = parseInt(choice.split('.')[0]);
 
@@ -139,8 +155,6 @@ class DockerManager {
         case 2:
           await this.manualSetup();
           break;
-        case 3:
-          return this.showInterface();
       }
 
     } catch (error) {
@@ -338,9 +352,18 @@ services:
           '3. Configure Docker daemon',
           '4. Setup Docker networks',
           '5. Setup Docker volumes',
-          '6. Go back'
+          new inquirer.Separator(),
+          {
+            name: 'Go back',
+            value: 'go_back',
+            checked: false
+          }
         ]
       });
+
+      if (setupType === 'go_back') {
+        return this.setupInterface();
+      }
 
       const selected = parseInt(setupType.split('.')[0]);
 
@@ -360,8 +383,6 @@ services:
         case 5:
           await this.setupDockerVolumes();
           break;
-        case 6:
-          return this.setupInterface();
       }
 
     } catch (error) {
