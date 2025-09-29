@@ -218,6 +218,15 @@ class NginxManager {
         console.log('📝 Writing Nginx configuration...');
         await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
 
+        // Clean up any existing broken symlinks
+        console.log('🧹 Cleaning up any existing broken symlinks...');
+        try {
+          // Check for broken symlinks and remove them
+          await exec('sudo find /etc/nginx/sites-enabled/ -type l ! -exec test -e {} \\; -delete');
+        } catch (error) {
+          // Ignore errors if no broken symlinks to remove
+        }
+
         // Enable site
         console.log('🔗 Enabling Nginx site...');
         await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
