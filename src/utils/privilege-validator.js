@@ -478,6 +478,8 @@ class PrivilegeValidator {
       'vulnerability-monitoring': ['filesystem'],
       'security-report': ['filesystem'],
       'compliance-check': ['filesystem'],
+      // Project operations
+      'project-clone': ['filesystem'],
       // Other specific operations
       postgresql: ['filesystem'],
       redis: ['filesystem'],

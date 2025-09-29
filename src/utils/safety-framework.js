@@ -372,6 +372,13 @@ class SafetyFramework {
         framework: Joi.string().valid('SOC2', 'HIPAA', 'GDPR', 'PCI-DSS').required()
       }),
 
+      // Project operations
+      'project-clone': Joi.object({
+        repositoryUrl: Joi.string().uri().required(),
+        cloneLocation: Joi.string().min(1).max(500).required(),
+        branch: Joi.string().default('main')
+      }),
+
       // Template operations
       'template-generation': Joi.object({
         templateName: Joi.string().min(1).max(100).required(),
