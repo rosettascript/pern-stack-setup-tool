@@ -166,6 +166,11 @@ class RedisManager {
       let projectDir;
       try {
         projectDir = await this.projectDiscovery.selectProject('Select project for Redis setup:');
+        
+        if (projectDir === 'GO_BACK') {
+          return this.showInterface();
+        }
+        
         console.log(`📁 Selected project: ${projectDir}`);
       } catch (error) {
         if (error.message === 'User chose to go back') {
@@ -345,6 +350,11 @@ volumes:
       let projectDir;
       try {
         projectDir = await this.projectDiscovery.selectProject('Select project for Redis setup:');
+        
+        if (projectDir === 'GO_BACK') {
+          return this.showInterface();
+        }
+        
         console.log(`📁 Selected project: ${projectDir}`);
       } catch (error) {
         if (error.message === 'User chose to go back') {

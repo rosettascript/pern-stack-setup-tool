@@ -176,6 +176,11 @@ class NginxManager {
     try {
       // Let user select project for Nginx configuration
       const projectDir = await this.projectDiscovery.selectProject('Select project for Nginx reverse proxy setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { domain } = await inquirer.prompt({

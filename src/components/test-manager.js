@@ -79,6 +79,11 @@ class TestManager {
     try {
       // Let user select project for testing framework setup
       const projectDir = await this.projectDiscovery.selectProject('Select project for testing framework setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { frameworks } = await inquirer.prompt({
@@ -574,6 +579,11 @@ describe('E2E Tests', () => {
     try {
       // Let user select project for running tests
       const projectDir = await this.projectDiscovery.selectProject('Select project to run tests for:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { testType } = await inquirer.prompt({
@@ -862,6 +872,11 @@ describe('E2E Tests', () => {
     try {
       // Let user select project for CI/CD configuration
       const projectDir = await this.projectDiscovery.selectProject('Select project for CI/CD configuration:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
       console.log(`📁 Selected project: ${projectDir}`);
 
       const { platform } = await inquirer.prompt({
