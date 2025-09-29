@@ -498,10 +498,12 @@ class PrivilegeValidator {
     // Find matching requirements
     for (const [key, reqs] of Object.entries(requirements)) {
       if (operation.includes(key)) {
+        logger.info(`🔍 Privilege requirements for ${operation}: matched key '${key}' with requirements: ${JSON.stringify(reqs)}`);
         return reqs;
       }
     }
 
+    logger.info(`🔍 Privilege requirements for ${operation}: using default filesystem requirement`);
     return ['filesystem']; // Default minimum requirement
   }
 }
