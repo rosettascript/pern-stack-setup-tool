@@ -204,6 +204,9 @@ class NginxManager {
         default: 5000
       });
 
+      // Extract project name from project path
+      const projectName = path.basename(projectDir);
+      
       await this.setup.safety.safeExecute('nginx-reverse-proxy', {
         domain,
         frontendPort,
@@ -214,9 +217,9 @@ class NginxManager {
         
         const nginxConfig = this.generateReverseProxyConfig(domain, frontendPort, backendPort);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
         console.log('📝 Writing Nginx configuration...');
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
         // Clean up any existing broken symlinks
         console.log('🧹 Cleaning up any existing broken symlinks...');
@@ -229,7 +232,7 @@ class NginxManager {
 
         // Enable site
         console.log('🔗 Enabling Nginx site...');
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         
         console.log('🧪 Testing Nginx configuration...');
         await exec('sudo nginx -t');
@@ -268,6 +271,18 @@ class NginxManager {
    */
   async setupLoadBalancer() {
     try {
+      // Let user select project for Nginx configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Nginx load balancer setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
+      console.log(`📁 Selected project: ${projectDir}`);
+      
+      // Extract project name from project path
+      const projectName = path.basename(projectDir);
+
       const { domain } = await inquirer.prompt({
         type: 'input',
         name: 'domain',
@@ -294,11 +309,11 @@ class NginxManager {
       }, async () => {
         const nginxConfig = this.generateLoadBalancerConfig(domain, servers);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
         // Enable site
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
@@ -332,6 +347,18 @@ class NginxManager {
    */
   async setupSSL() {
     try {
+      // Let user select project for Nginx configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Nginx SSL setup:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
+      console.log(`📁 Selected project: ${projectDir}`);
+      
+      // Extract project name from project path
+      const projectName = path.basename(projectDir);
+
       const { domain } = await inquirer.prompt({
         type: 'input',
         name: 'domain',
@@ -355,13 +382,13 @@ class NginxManager {
 
       switch(selected) {
         case 1:
-          await this.setupLetsEncrypt(domain);
+          await this.setupLetsEncrypt(domain, projectName);
           break;
         case 2:
-          await this.setupExistingCertificate(domain);
+          await this.setupExistingCertificate(domain, projectName);
           break;
         case 3:
-          await this.setupSelfSignedCertificate(domain);
+          await this.setupSelfSignedCertificate(domain, projectName);
           break;
       }
 
@@ -375,7 +402,7 @@ class NginxManager {
   /**
    * Setup Let's Encrypt SSL
    */
-  async setupLetsEncrypt(domain) {
+  async setupLetsEncrypt(domain, projectName) {
     try {
       const { email } = await inquirer.prompt({
         type: 'input',
@@ -423,7 +450,7 @@ class NginxManager {
   /**
    * Setup existing certificate
    */
-  async setupExistingCertificate(domain) {
+  async setupExistingCertificate(domain, projectName) {
     try {
       const { certPath } = await inquirer.prompt({
         type: 'input',
@@ -453,8 +480,8 @@ class NginxManager {
         const configSpinner = ora('📝 Generating Nginx SSL configuration...').start();
         const nginxConfig = this.generateSSLConfig(domain, certPath, keyPath);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
         configSpinner.succeed('✅ Nginx SSL configuration written');
 
         // Test and reload Nginx
@@ -484,7 +511,7 @@ class NginxManager {
   /**
    * Setup self-signed certificate
    */
-  async setupSelfSignedCertificate(domain) {
+  async setupSelfSignedCertificate(domain, projectName) {
     try {
       await this.setup.safety.safeExecute('nginx-self-signed', { domain }, async () => {
         console.log('🔧 Setting up self-signed SSL certificate...');
@@ -507,8 +534,8 @@ class NginxManager {
           '/etc/ssl/certs/nginx-selfsigned.crt',
           '/etc/ssl/private/nginx-selfsigned.key');
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
         configSpinner.succeed('✅ Nginx SSL configuration written');
 
         // Test and reload Nginx
@@ -540,6 +567,18 @@ class NginxManager {
    */
   async setupCustom() {
     try {
+      // Let user select project for Nginx configuration
+      const projectDir = await this.projectDiscovery.selectProject('Select project for Nginx custom configuration:');
+      
+      if (projectDir === 'GO_BACK') {
+        return this.showInterface();
+      }
+      
+      console.log(`📁 Selected project: ${projectDir}`);
+      
+      // Extract project name from project path
+      const projectName = path.basename(projectDir);
+
       const { configType } = await inquirer.prompt({
         type: 'list',
         name: 'configType',
@@ -558,19 +597,19 @@ class NginxManager {
 
       switch(selected) {
         case 1:
-          await this.setupSingleServerProxy();
+          await this.setupSingleServerProxy(projectName);
           break;
         case 2:
-          await this.setupLoadBalancedServers();
+          await this.setupLoadBalancedServers(projectName);
           break;
         case 3:
-          await this.setupStaticFileServing();
+          await this.setupStaticFileServing(projectName);
           break;
         case 4:
-          await this.setupWebSocketSupport();
+          await this.setupWebSocketSupport(projectName);
           break;
         case 5:
-          await this.setupFullConfiguration();
+          await this.setupFullConfiguration(projectName);
           break;
       }
 
@@ -582,7 +621,7 @@ class NginxManager {
   /**
    * Setup single server proxy
    */
-  async setupSingleServerProxy() {
+  async setupSingleServerProxy(projectName) {
     try {
       const { domain } = await inquirer.prompt({
         type: 'input',
@@ -606,10 +645,10 @@ class NginxManager {
       }, async () => {
         const nginxConfig = this.generateSingleProxyConfig(domain, backendServer);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
@@ -634,7 +673,7 @@ class NginxManager {
   /**
    * Setup load balanced servers
    */
-  async setupLoadBalancedServers() {
+  async setupLoadBalancedServers(projectName) {
     try {
       const { domain } = await inquirer.prompt({
         type: 'input',
@@ -662,10 +701,10 @@ class NginxManager {
       }, async () => {
         const nginxConfig = this.generateLoadBalancedConfig(domain, servers);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
@@ -690,7 +729,7 @@ class NginxManager {
   /**
    * Setup static file serving
    */
-  async setupStaticFileServing() {
+  async setupStaticFileServing(projectName) {
     try {
       const { domain } = await inquirer.prompt({
         type: 'input',
@@ -712,10 +751,10 @@ class NginxManager {
       }, async () => {
         const nginxConfig = this.generateStaticFileConfig(domain, rootPath);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
@@ -731,7 +770,7 @@ class NginxManager {
   /**
    * Setup WebSocket support
    */
-  async setupWebSocketSupport() {
+  async setupWebSocketSupport(projectName) {
     try {
       const { domain } = await inquirer.prompt({
         type: 'input',
@@ -753,10 +792,10 @@ class NginxManager {
       }, async () => {
         const nginxConfig = this.generateWebSocketConfig(domain, backendServer);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
@@ -772,7 +811,7 @@ class NginxManager {
   /**
    * Setup full configuration
    */
-  async setupFullConfiguration() {
+  async setupFullConfiguration(projectName) {
     try {
       console.log('🔧 Setting up full Nginx configuration...');
 
@@ -786,10 +825,10 @@ class NginxManager {
       await this.setup.safety.safeExecute('nginx-full-config', { domain }, async () => {
         const nginxConfig = this.generateFullConfig(domain);
 
-        const configPath = '/etc/nginx/sites-available/pern-app';
-        await exec(`echo '${nginxConfig}' | sudo tee ${configPath} > /dev/null`);
+        const configPath = `/etc/nginx/sites-available/${projectName}`;
+        await exec(`echo '${nginxConfig}' | sudo tee '${configPath}' > /dev/null`);
 
-        await exec('sudo ln -sf /etc/nginx/sites-available/pern-app /etc/nginx/sites-enabled/');
+        await exec(`sudo ln -sf '/etc/nginx/sites-available/${projectName}' '/etc/nginx/sites-enabled/${projectName}'`);
         await exec('sudo nginx -t');
         await exec('sudo systemctl reload nginx');
 
