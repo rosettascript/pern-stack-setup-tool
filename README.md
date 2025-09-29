@@ -10,6 +10,7 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Interactive CLI Interface** - User-friendly setup process
 - **Cross-Platform Support** - Windows, Linux, macOS, Docker, WSL
 - **Component Management** - PostgreSQL, Redis, Docker, PM2, Nginx
+- **Tool Installation** - Essential development tools and package managers
 - **Project Templates** - Pre-built templates for common use cases
 - **Configuration Management** - Centralized configuration with validation
 
@@ -30,6 +31,7 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Documentation** - Interactive documentation with live examples
 
 ### 🔧 Advanced Utilities
+- **Tool Installation Manager** - Essential development tools and package managers (Git, Node.js, npm, yarn, pnpm, etc.)
 - **Compliance Validator** - Multi-framework compliance validation (SOC 2, HIPAA, GDPR, PCI-DSS)
 - **Cross-Platform Validator** - Comprehensive platform compatibility testing
 - **Data Protection Manager** - GDPR-compliant data handling and encryption
@@ -103,11 +105,12 @@ npm start
 # 1. PostgreSQL → 2. Setup PostgreSQL → 1. Automatic setup
 # 3. Docker → 2. Setup Docker → 1. Automatic setup
 # 4. Folder Structure → 1. Create Project → Full-stack (PERN)
-# 8. Configuration → 1. Environment Variables → 1. Development
-# 10. End → 4. Exit
+# 8. Tool Installation → Install essential development tools
+# 9. Configuration → 1. Environment Variables → 1. Development
+# 11. End → 4. Exit
 ```
 
-**Note**: The menu includes additional options (Redis, PM2, Nginx, Tests, Advanced Features) that are not part of the basic setup flow. Redis, PM2, and Nginx are Linux/macOS only.
+**Note**: The menu includes additional options (Redis, PM2, Nginx, Tests, Tool Installation, Advanced Features) that are not part of the basic setup flow. Redis, PM2, and Nginx are Linux/macOS only.
 
 ## 📋 Implementation Checklist
 
@@ -170,7 +173,8 @@ npm start
 # 1. PostgreSQL → Setup → Automatic
 # 3. Docker → Setup → Automatic
 # 4. Folder Structure → Create Project → Full-stack
-# 8. Configuration → Environment Variables
+# 8. Tool Installation → Install essential tools
+# 9. Configuration → Environment Variables
 ```
 
 ### Advanced Setup with Security
@@ -180,10 +184,11 @@ npm start
 # 1. PostgreSQL → Setup → Automatic
 # 3. Docker → Setup → Automatic
 # 4. Folder Structure → Create Project → Microservices
-# 8. Configuration → Authentication → Multi-role
-# 8. Configuration → Security Settings → All options
-# 9. Advanced Features → Security Scanning → Scan setup
-# 9. Advanced Features → Compliance Setup → SOC 2
+# 8. Tool Installation → Install essential tools
+# 9. Configuration → Authentication → Multi-role
+# 9. Configuration → Security Settings → All options
+# 10. Advanced Features → Security Scanning → Scan setup
+# 10. Advanced Features → Compliance Setup → SOC 2
 ```
 
 ### Development Workflow
@@ -239,6 +244,7 @@ pern-setup-tool/
 │   │   ├── pm2-manager.js
 │   │   ├── nginx-manager.js
 │   │   ├── test-manager.js
+│   │   ├── tool-manager.js
 │   │   ├── security-manager.js
 │   │   └── compliance-manager.js
 │   ├── features/                # Advanced features
