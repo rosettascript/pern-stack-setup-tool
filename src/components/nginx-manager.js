@@ -785,6 +785,13 @@ class NginxManager {
         await exec('sudo systemctl reload nginx');
 
         console.log('✅ Full Nginx configuration applied');
+        
+        return {
+          success: true,
+          domain: domain,
+          configPath: configPath,
+          timestamp: new Date().toISOString()
+        };
       });
     } catch (error) {
       await this.setup.handleError('nginx-full-config-setup', error);
