@@ -124,7 +124,10 @@ class ConfigurationManager {
       // Set defaults for missing values
       this.setDefaults();
 
-      console.log('✅ Configuration loaded successfully');
+      // Only log if not in quiet mode
+      if (!process.env.QUIET_MODE) {
+        console.log('✅ Configuration loaded successfully');
+      }
     } catch (error) {
       console.error('❌ Configuration loading failed:', error.message);
       throw error;

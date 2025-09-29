@@ -32,7 +32,10 @@ class PerformanceMonitor {
     }, interval);
 
     this.takeResourceSnapshot(); // Initial snapshot
-    console.log('📊 Performance monitoring started');
+    // Only log if not in quiet mode
+    if (!process.env.QUIET_MODE) {
+      console.log('📊 Performance monitoring started');
+    }
   }
 
   /**

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Set quiet mode before loading any modules to suppress verbose initialization output
+process.env.QUIET_MODE = 'true';
+
 /**
  * PERN Setup Tool - Main Entry Point
  * Comprehensive PERN Stack Setup with Advanced Features
@@ -47,7 +50,7 @@ const AnalyticsManager = require('./features/analytics-manager');
 class PERNSetupTool {
   constructor() {
     this.safety = new SafetyFramework();
-    this.logger = new Logger();
+    this.logger = new Logger(true); // Enable quiet mode for cleaner output
     this.config = new ConfigurationManager();
     this.performance = new PerformanceMonitor();
 
@@ -96,13 +99,8 @@ class PERNSetupTool {
    */
   async initialize() {
     try {
-      console.log(chalk.blue.bold('\n🚀 PERN Setup Tool v1.0.0'));
-      console.log(chalk.gray('Comprehensive PERN Stack Setup with Advanced Features\n'));
-
-      // Initialize safety framework
-      const spinner = ora('Initializing safety framework...').start();
+      // Initialize safety framework silently
       await this.safety.initialize();
-      spinner.succeed('Safety framework initialized');
 
       // Check platform compatibility
       await this.checkPlatformCompatibility();
@@ -112,6 +110,9 @@ class PERNSetupTool {
 
       // Initialize performance monitoring
       this.performance.start();
+
+      // Clear quiet mode after initialization
+      delete process.env.QUIET_MODE;
 
       this.logger.info('PERN Setup Tool initialized successfully');
 

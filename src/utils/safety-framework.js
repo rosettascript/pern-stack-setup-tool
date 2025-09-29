@@ -29,8 +29,8 @@ const logger = winston.createLogger({
   ]
 });
 
-// Add console logging in development
-if (process.env.NODE_ENV !== 'production') {
+// Add console logging in development (controlled by QUIET_MODE env var)
+if (process.env.NODE_ENV !== 'production' && !process.env.QUIET_MODE) {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),

@@ -13,11 +13,12 @@ const os = require('os');
  * Provides comprehensive logging capabilities with performance tracking
  */
 class Logger {
-  constructor() {
+  constructor(quietMode = false) {
     this.logDir = path.join(os.homedir(), '.pern-setup', 'logs');
     this.performanceMetrics = new Map();
     this.errorCounts = new Map();
     this.startTime = Date.now();
+    this.quietMode = quietMode;
 
     this.initializeLogger();
   }
@@ -67,8 +68,8 @@ class Logger {
       ]
     });
 
-    // Console logging in development
-    if (process.env.NODE_ENV !== 'production') {
+    // Console logging in development (skip if in quiet mode)
+    if (process.env.NODE_ENV !== 'production' && !this.quietMode) {
       this.logger.add(new winston.transports.Console({
         format: winston.format.combine(
           winston.format.colorize(),

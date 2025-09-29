@@ -307,15 +307,6 @@ class ToolManager {
    */
   async showInterface() {
     try {
-      // Show loading animation for interface initialization
-      const spinner = ora('Loading Tool Installation Manager...').start();
-
-      // Simulate loading platform information
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      spinner.succeed('Tool Installation Manager loaded');
-      spinner.stop();
-
       // Show platform-specific information
       this.showPlatformInfo();
 
@@ -384,15 +375,12 @@ class ToolManager {
    */
   async showDevelopmentToolsInterface() {
     try {
-      const categorySpinner = ora('Loading development tools...').start();
       const devTools = this.getToolsByCategory('Development');
 
       if (devTools.length === 0) {
-        categorySpinner.warn(`No development tools available for ${this.getPlatformName()}`);
+        console.log(`No development tools available for ${this.getPlatformName()}`);
         return this.showInterface();
       }
-
-      categorySpinner.succeed(`Found ${devTools.length} development tools for ${this.getPlatformName()}`);
 
       const { tools } = await inquirer.prompt({
         type: 'list',
@@ -426,15 +414,12 @@ class ToolManager {
    */
   async showGISToolsInterface() {
     try {
-      const gisSpinner = ora('Loading GIS tools (GDAL, PostGIS, etc.)...').start();
       const gisTools = this.getToolsByCategory('GIS');
 
       if (gisTools.length === 0) {
-        gisSpinner.warn(`No GIS tools available for ${this.getPlatformName()}`);
+        console.log(`No GIS tools available for ${this.getPlatformName()}`);
         return this.showInterface();
       }
-
-      gisSpinner.succeed(`Found ${gisTools.length} GIS tools for ${this.getPlatformName()}`);
 
       const { tools } = await inquirer.prompt({
         type: 'list',
@@ -689,10 +674,8 @@ class ToolManager {
       throw new Error(`${tool.name} is not supported on ${this.getPlatformName()}`);
     }
 
-    // Show platform-specific prerequisites with loading animation
-    const prereqSpinner = ora(`Checking prerequisites for ${tool.name}...`).start();
+    // Show platform-specific prerequisites
     await this.showPlatformPrerequisites(tool);
-    prereqSpinner.succeed(`Prerequisites checked for ${tool.name}`);
 
     // Check dependencies
     if (tool.dependencies) {
@@ -719,19 +702,16 @@ class ToolManager {
       const results = [];
 
       for (const command of installCommands) {
-        const commandSpinner = ora(`Executing: ${command}`).start();
+        console.log(`Executing: ${command}`);
 
         try {
           const result = await exec(command);
           results.push({ command, success: true, output: result.stdout });
-          commandSpinner.succeed(`Completed: ${command}`);
-
-          // Add delay between commands
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log(`✅ Completed: ${command}`);
 
         } catch (error) {
           results.push({ command, success: false, error: error.message });
-          commandSpinner.fail(`Failed: ${command}`);
+          console.log(`❌ Failed: ${command}`);
           throw error;
         }
       }
@@ -744,12 +724,12 @@ class ToolManager {
       }
 
       // Verify installation
-      const verifySpinner = ora(`Verifying ${tool.name} installation...`).start();
+      console.log(`Verifying ${tool.name} installation...`);
       const isInstalled = await this.verifyInstallation(tool);
       if (isInstalled) {
-        verifySpinner.succeed(`${tool.name} installation verified`);
+        console.log(`✅ ${tool.name} installation verified`);
       } else {
-        verifySpinner.fail(`${tool.name} installation verification failed`);
+        console.log(`❌ ${tool.name} installation verification failed`);
         throw new Error(`Installation verification failed for ${tool.name}`);
       }
 
@@ -768,14 +748,12 @@ class ToolManager {
    */
   async checkDependencies(dependencies) {
     for (const dep of dependencies) {
-      const depSpinner = ora(`Checking dependency: ${dep}...`).start();
-
       if (!await this.isToolInstalled(dep)) {
-        depSpinner.text = `Installing dependency: ${dep}...`;
+        console.log(`Installing dependency: ${dep}...`);
         await this.installTool(dep);
-        depSpinner.succeed(`Dependency ${dep} installed`);
+        console.log(`✅ Dependency ${dep} installed`);
       } else {
-        depSpinner.succeed(`Dependency ${dep} already installed`);
+        console.log(`✅ Dependency ${dep} already installed`);
       }
     }
   }
@@ -897,14 +875,8 @@ class ToolManager {
    * Check installed tools
    */
   async checkInstalledTools() {
-    const checkSpinner = ora(`Checking installed tools on ${this.getPlatformName()}...`).start();
-
     const results = [];
     const availableTools = this.getAvailableToolsForPlatform();
-
-    checkSpinner.text = `Found ${availableTools.length} available tools for ${this.getPlatformName()}`;
-    await new Promise(resolve => setTimeout(resolve, 800));
-    checkSpinner.succeed(`Tool check completed for ${this.getPlatformName()}`);
 
     console.log(`\n📋 Available tools for ${this.getPlatformName()}: ${availableTools.length}\n`);
 
@@ -914,16 +886,10 @@ class ToolManager {
         continue;
       }
 
-      const toolSpinner = ora(`Checking ${tool.name}...`).start();
-
       const isInstalled = await this.isToolInstalled(toolKey);
       const status = isInstalled ? '✅' : '❌';
 
-      if (isInstalled) {
-        toolSpinner.succeed(`${tool.name} - Installed`);
-      } else {
-        toolSpinner.warn(`${tool.name} - Not installed`);
-      }
+      console.log(`${status} ${tool.name}`);
 
       results.push({
         tool: toolKey,
@@ -990,29 +956,25 @@ class ToolManager {
    * Update package managers
    */
   async updatePackageManagers() {
-    const updateSpinner = ora('Updating package managers...').start();
-
     try {
       const updateCommands = this.getUpdateCommands();
 
-      updateSpinner.text = `Found ${Object.keys(updateCommands).length} package managers to update`;
+      console.log(`Found ${Object.keys(updateCommands).length} package managers to update`);
 
       for (const [manager, command] of Object.entries(updateCommands)) {
-        const managerSpinner = ora(`Updating ${manager}...`).start();
+        console.log(`Updating ${manager}...`);
 
         try {
           await exec(command);
-          managerSpinner.succeed(`${manager} updated successfully`);
+          console.log(`✅ ${manager} updated successfully`);
         } catch (error) {
-          managerSpinner.fail(`Failed to update ${manager}: ${error.message}`);
           console.warn(`⚠️  Failed to update ${manager}:`, error.message);
         }
       }
 
-      updateSpinner.succeed('Package managers update completed');
+      console.log('✅ Package managers update completed');
 
     } catch (error) {
-      updateSpinner.fail('Package managers update failed');
       console.error('❌ Failed to update package managers:', error.message);
     }
 
@@ -1131,8 +1093,6 @@ class ToolManager {
    * Export tool installation status
    */
   async exportToolStatus(results) {
-    const exportSpinner = ora('Exporting tool installation status...').start();
-
     try {
       const exportData = {
         timestamp: new Date().toISOString(),
@@ -1149,9 +1109,9 @@ class ToolManager {
       const exportPath = path.join(process.cwd(), 'tool-installation-status.json');
       await fs.writeFile(exportPath, JSON.stringify(exportData, null, 2));
 
-      exportSpinner.succeed(`Tool status exported to: ${exportPath}`);
+      console.log(`✅ Tool status exported to: ${exportPath}`);
     } catch (error) {
-      exportSpinner.fail('Failed to export tool status');
+      console.error('❌ Failed to export tool status:', error.message);
       throw error;
     }
   }
@@ -1160,19 +1120,15 @@ class ToolManager {
    * Show installation history and logs
    */
   async showInstallationHistory() {
-    const historySpinner = ora('Loading installation history...').start();
-
     try {
       const logPath = path.join(process.cwd(), 'tool-installation-status.json');
 
       if (!await fs.pathExists(logPath)) {
-        historySpinner.warn('No installation history found');
-        console.log('💡 Run some tool installations first to generate history');
+        console.log('💡 No installation history found. Run some tool installations first to generate history');
         return this.showInterface();
       }
 
       const historyData = JSON.parse(await fs.readFile(logPath, 'utf8'));
-      historySpinner.succeed('Installation history loaded');
 
       console.log(`\n📜 Installation History (${historyData.platformName})`);
       console.log(`📅 Last Updated: ${new Date(historyData.timestamp).toLocaleString()}`);
@@ -1265,19 +1221,16 @@ class ToolManager {
    * Clear installation history
    */
   async clearHistory() {
-    const clearSpinner = ora('Clearing installation history...').start();
-
     try {
       const logPath = path.join(process.cwd(), 'tool-installation-status.json');
 
       if (await fs.pathExists(logPath)) {
         await fs.unlink(logPath);
-        clearSpinner.succeed('Installation history cleared');
+        console.log('✅ Installation history cleared');
       } else {
-        clearSpinner.warn('No history file found to clear');
+        console.log('ℹ️  No history file found to clear');
       }
     } catch (error) {
-      clearSpinner.fail('Failed to clear history');
       console.error('❌ Error clearing history:', error.message);
     }
 
