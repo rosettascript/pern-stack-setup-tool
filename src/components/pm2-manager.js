@@ -635,6 +635,7 @@ class PM2Manager {
    */
   async manageProcesses() {
     try {
+      console.log('Debug: manageProcesses() called - showing menu');
       const { choice } = await inquirer.prompt([
         {
           type: 'list',
@@ -1552,7 +1553,9 @@ class PM2Manager {
 
       // Navigation happens after safeExecute completes
       console.log('🔄 Returning to PM2 process management...');
+      console.log('Debug: About to call manageProcesses()');
       await this.manageProcesses();
+      console.log('Debug: manageProcesses() completed');
     } catch (error) {
       await this.setup.handleError('pm2-logs', error);
     }
