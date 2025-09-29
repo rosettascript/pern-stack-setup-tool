@@ -1304,25 +1304,14 @@ class PM2Manager {
           await monitorProcess;
           // If we reach here, the monitoring ended naturally
           console.log('✅ PM2 monitoring completed');
-          console.log('🔄 Returning to PM2 process management...');
-          setTimeout(() => {
-            this.manageProcesses();
-          }, 1000);
         } catch (error) {
           // Handle process termination gracefully
           if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
             console.log('✅ PM2 monitoring stopped by user');
-            console.log('🔄 Returning to PM2 process management...');
-            setTimeout(() => {
-              this.manageProcesses();
-            }, 1000);
           } else if (error.message.includes('disconnectBus') || error.message.includes('Cannot read properties of undefined')) {
             console.log('⚠️  PM2 monitoring encountered an error (this is common when no processes are running)');
             console.log('💡 Try starting some PM2 processes first, then monitor again');
             console.log('✅ Returning to menu...');
-            setTimeout(() => {
-              this.manageProcesses();
-            }, 1000);
           } else {
             throw error;
           }
@@ -1334,6 +1323,10 @@ class PM2Manager {
           timestamp: new Date().toISOString()
         };
       });
+
+      // Navigation happens after safeExecute completes
+      console.log('🔄 Returning to PM2 process management...');
+      await this.manageProcesses();
     } catch (error) {
       // Handle the specific disconnectBus error gracefully
       if (error.message && error.message.includes('disconnectBus')) {
@@ -1516,12 +1509,6 @@ class PM2Manager {
               throw error;
             }
           }
-          
-          // Return to menu after completion
-          console.log('🔄 Returning to PM2 process management...');
-          setTimeout(() => {
-            this.manageProcesses();
-          }, 1000);
         } else {
           // Show logs until Ctrl+C
           const logProcess = exec('pm2 logs --lines 100');
@@ -1539,10 +1526,6 @@ class PM2Manager {
             originalSigintHandler.forEach(handler => process.on('SIGINT', handler));
             
             console.log('✅ Log viewing stopped');
-            console.log('🔄 Returning to PM2 process management...');
-            setTimeout(() => {
-              this.manageProcesses();
-            }, 1000);
           };
 
           process.on('SIGINT', handleSigint);
@@ -1551,10 +1534,6 @@ class PM2Manager {
             await logProcess;
             // If we reach here, the process ended naturally
             console.log('✅ Log viewing completed');
-            console.log('🔄 Returning to PM2 process management...');
-            setTimeout(() => {
-              this.manageProcesses();
-            }, 1000);
           } catch (error) {
             if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
               console.log('✅ Log viewing stopped by user');
@@ -1570,6 +1549,10 @@ class PM2Manager {
           timestamp: new Date().toISOString()
         };
       });
+
+      // Navigation happens after safeExecute completes
+      console.log('🔄 Returning to PM2 process management...');
+      await this.manageProcesses();
     } catch (error) {
       await this.setup.handleError('pm2-logs', error);
     }
