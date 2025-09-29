@@ -47,6 +47,17 @@ The PERN Stack Setup Tool was built with three core principles:
 
 ### 🏗️ Core Components & Features
 
+#### **Recent Improvements: Smart Nginx Management**
+One of the most significant recent improvements is the complete overhaul of Nginx management. Previously, all Nginx configurations used a generic "pern-app" name, making it difficult to manage multiple projects. Now, the tool:
+
+- **Uses Project-Specific Names**: Nginx sites are automatically named after your actual project (e.g., "e2e", "my-blog", "ecommerce-api")
+- **Smart Project Selection**: All Nginx configuration methods now ask you to select your project first
+- **Proper Site Organization**: Sites appear in Nginx lists with meaningful names instead of generic ones
+- **Cross-Platform Compatibility**: Works seamlessly on Windows, Linux, and macOS
+- **Template Literal Fixes**: Resolved shell command interpolation issues that were causing configuration failures
+
+This means when you create a reverse proxy for your "e2e" project, it will appear as "e2e" in your Nginx sites list, not as "pern-app"!
+
 #### **Main Interface Components**
 - **PostgreSQL Manager**: Complete PostgreSQL installation, configuration, and management
 - **Redis Manager**: Redis installation and configuration (Linux/macOS)

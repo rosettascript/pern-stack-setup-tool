@@ -39,6 +39,7 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Privilege Validator** - Security privilege and permission validation
 - **Secure Executor** - Safe command execution with privilege escalation
 - **Security Audit** - Automated security auditing and reporting
+- **Smart Nginx Management** - Project-specific Nginx configurations with automatic site naming
 
 ## 🚀 Quick Start
 
@@ -65,6 +66,14 @@ A professional, enterprise-grade tool for setting up PERN (PostgreSQL, Express, 
 - **Microservices Setup**: Docker Desktop integration for Windows microservices
 - **Scalability Configuration**: Windows-specific scaling and load balancing
 - **Interactive Documentation**: Windows-compatible documentation system
+
+### 🌐 Nginx Management Improvements
+- **Project-Specific Naming**: Nginx sites now use actual project names instead of generic "pern-app"
+- **Smart Site Management**: Automatic project selection for all Nginx configurations
+- **Template Literal Fixes**: Resolved shell command interpolation issues
+- **Cross-Platform Support**: Works seamlessly on Windows, Linux, and macOS
+- **Site Organization**: Sites appear in Nginx lists with proper project names
+- **Configuration Types**: Support for reverse proxy, load balancer, SSL, and custom configurations
 
 ### Installation
 

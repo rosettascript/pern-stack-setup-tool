@@ -48,6 +48,10 @@ This guide covers all the different ways you can test your PERN Stack Setup Tool
 - **Docker Daemon Permissions**: Fixed Docker daemon configuration permission issue by using sudo commands
 - **Docker Privilege Requirements**: Fixed Docker operations to use filesystem privilege only and sudo commands
 - **Docker Daemon Startup**: Fixed Docker network/volume setup to start Docker daemon first
+- **Nginx Project Naming**: Fixed Nginx sites to use actual project names instead of generic "pern-app"
+- **Nginx Project Selection**: Added project selection to all Nginx configuration methods
+- **Nginx Template Literals**: Fixed shell command interpolation issues in Nginx configuration
+- **Nginx Syntax Errors**: Fixed quote escaping issues in exec() calls for Nginx operations
 - **Docker Automatic Progress**: Added comprehensive progress indicators to automatic Docker setup
 - **Docker Network Exists**: Fixed Docker automatic setup to handle existing network gracefully
 - **PM2 Operations**: Added missing PM2 operations to safety framework with proper validation
@@ -492,6 +496,55 @@ npm install --save-dev husky
 # Add pre-commit hook
 npx husky add .husky/pre-commit "npm run test:precommit"
 ```
+
+---
+
+## 🌐 Testing Nginx Project Naming Improvements
+
+### **Test Project-Specific Naming**
+1. **Create a test project**:
+   ```bash
+   # Create a test project directory
+   mkdir -p /home/user/test-project
+   cd /home/user/test-project
+   ```
+
+2. **Run Nginx setup**:
+   ```bash
+   # Start the tool and navigate to Nginx
+   npm start
+   # Select: 6. Nginx → 2. Setup Nginx → 1. Basic reverse proxy setup
+   # Select your test project when prompted
+   ```
+
+3. **Verify project-specific naming**:
+   ```bash
+   # Check that the site is named after your project
+   ls /etc/nginx/sites-available/
+   # Should show: default, test-project (not "pern-app")
+   
+   ls /etc/nginx/sites-enabled/
+   # Should show: test-project (not "pern-app")
+   ```
+
+### **Test All Nginx Configuration Types**
+- **Basic Reverse Proxy**: Should create site with project name
+- **Load Balancer**: Should create site with project name  
+- **SSL Configuration**: Should create site with project name
+- **Custom Configuration**: Should create site with project name
+- **Full Configuration**: Should create site with project name
+
+### **Test Cross-Platform Compatibility**
+- **Linux**: Test on Ubuntu/Debian systems
+- **macOS**: Test on macOS with Homebrew
+- **Windows**: Test with WSL or Docker Desktop
+
+### **Expected Results**
+- ✅ Sites appear with actual project names in Nginx lists
+- ✅ No more generic "pern-app" naming
+- ✅ Project selection works for all configuration types
+- ✅ Shell commands execute without syntax errors
+- ✅ Template literals properly interpolate project names
 
 ---
 
