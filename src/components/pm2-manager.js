@@ -1226,13 +1226,54 @@ class PM2Manager {
    */
   async startPM2Monitoring() {
     try {
+      // First check if PM2 has any processes running
+      console.log('🔍 Checking PM2 processes...');
+      
+      const { exec } = require('child-process-promise');
+      let hasProcesses = false;
+      
+      try {
+        const { stdout } = await exec('pm2 list --no-color');
+        hasProcesses = !stdout.includes('No process found') && stdout.trim() !== '';
+      } catch (error) {
+        console.log('⚠️  Could not check PM2 process list');
+      }
+
+      if (!hasProcesses) {
+        console.log('⚠️  No PM2 processes are currently running');
+        console.log('💡 You need to start processes first using "Start process" option');
+        console.log('💡 Or create an ecosystem.config.js file and run: pm2 start ecosystem.config.js');
+        
+        const { continueChoice } = await inquirer.prompt({
+          type: 'list',
+          name: 'continueChoice',
+          message: 'What would you like to do?',
+          loop: false,
+          choices: [
+            '1. Go back to process management',
+            '2. Try monitoring anyway (may show errors)',
+            '3. Show PM2 status instead'
+          ]
+        });
+
+        const selected = parseInt(continueChoice.split('.')[0]);
+        switch(selected) {
+          case 1:
+            return this.manageProcesses();
+          case 2:
+            // Continue with monitoring despite no processes
+            break;
+          case 3:
+            return this.showPM2Status();
+        }
+      }
+
       await this.setup.safety.safeExecute('pm2-monitor-processes', {
         platform: this.platform
       }, async () => {
         console.log('🔍 Starting PM2 monitoring...');
         console.log('Press Ctrl+C to stop monitoring and return to menu');
 
-        const { exec } = require('child-process-promise');
         const monitorProcess = exec('pm2 monit');
 
         // Store original SIGINT handler
@@ -1265,6 +1306,10 @@ class PM2Manager {
           // Handle process termination gracefully
           if (error.message.includes('SIGINT') || error.code === 'SIGINT') {
             console.log('✅ PM2 monitoring stopped by user');
+          } else if (error.message.includes('disconnectBus') || error.message.includes('Cannot read properties of undefined')) {
+            console.log('⚠️  PM2 monitoring encountered an error (this is common when no processes are running)');
+            console.log('💡 Try starting some PM2 processes first, then monitor again');
+            console.log('✅ Returning to menu...');
           } else {
             throw error;
           }
@@ -1277,7 +1322,36 @@ class PM2Manager {
         };
       });
     } catch (error) {
-      await this.setup.handleError('pm2-monitor-processes', error);
+      // Handle the specific disconnectBus error gracefully
+      if (error.message && error.message.includes('disconnectBus')) {
+        console.log('⚠️  PM2 monitoring failed due to internal PM2 error');
+        console.log('💡 This usually happens when PM2 is not properly initialized or no processes are running');
+        console.log('💡 Try using "Show PM2 status" instead, or start some processes first');
+        
+        const { fallbackChoice } = await inquirer.prompt({
+          type: 'list',
+          name: 'fallbackChoice',
+          message: 'What would you like to do?',
+          loop: false,
+          choices: [
+            '1. Show PM2 status instead',
+            '2. Go back to process management',
+            '3. Try again'
+          ]
+        });
+
+        const selected = parseInt(fallbackChoice.split('.')[0]);
+        switch(selected) {
+          case 1:
+            return this.showPM2Status();
+          case 2:
+            return this.manageProcesses();
+          case 3:
+            return this.startPM2Monitoring();
+        }
+      } else {
+        await this.setup.handleError('pm2-monitor-processes', error);
+      }
     }
   }
 
@@ -1293,11 +1367,26 @@ class PM2Manager {
         console.log('=' .repeat(50));
         
         const { exec } = require('child-process-promise');
-        const { stdout } = await exec('pm2 list --no-color');
-        console.log(stdout);
         
-        console.log('\n💡 Use "pm2 monit" for real-time monitoring');
-        console.log('💡 Use "pm2 logs" for live logs');
+        try {
+          const { stdout } = await exec('pm2 list --no-color');
+          console.log(stdout);
+          
+          if (stdout.includes('No process found') || stdout.trim() === '') {
+            console.log('\n⚠️  No PM2 processes are currently running');
+            console.log('💡 To start processes:');
+            console.log('   • Use "Start process" option in this menu');
+            console.log('   • Or create an ecosystem.config.js file and run: pm2 start ecosystem.config.js');
+            console.log('   • Or start a process manually: pm2 start app.js');
+          } else {
+            console.log('\n💡 Use "pm2 monit" for real-time monitoring');
+            console.log('💡 Use "pm2 logs" for live logs');
+          }
+        } catch (error) {
+          console.log('⚠️  Could not retrieve PM2 process list');
+          console.log('💡 Make sure PM2 is installed and running');
+          console.log('💡 Try running: pm2 list');
+        }
         
         return {
           success: true,
@@ -1343,6 +1432,47 @@ class PM2Manager {
         case 4: duration = 0; break; // 0 means until stopped
       }
 
+      // First check if PM2 has any processes running
+      console.log('🔍 Checking PM2 processes...');
+      
+      const { exec } = require('child-process-promise');
+      let hasProcesses = false;
+      
+      try {
+        const { stdout } = await exec('pm2 list --no-color');
+        hasProcesses = !stdout.includes('No process found') && stdout.trim() !== '';
+      } catch (error) {
+        console.log('⚠️  Could not check PM2 process list');
+      }
+
+      if (!hasProcesses) {
+        console.log('⚠️  No PM2 processes are currently running');
+        console.log('💡 You need to start processes first to view logs');
+        
+        const { logChoice } = await inquirer.prompt({
+          type: 'list',
+          name: 'logChoice',
+          message: 'What would you like to do?',
+          loop: false,
+          choices: [
+            '1. Go back to monitoring options',
+            '2. Show PM2 status instead',
+            '3. Try showing logs anyway (may show errors)'
+          ]
+        });
+
+        const selected = parseInt(logChoice.split('.')[0]);
+        switch(selected) {
+          case 1:
+            return this.monitorProcesses();
+          case 2:
+            return this.showPM2Status();
+          case 3:
+            // Continue with logs despite no processes
+            break;
+        }
+      }
+
       await this.setup.safety.safeExecute('pm2-logs', {
         platform: this.platform,
         duration
@@ -1353,8 +1483,6 @@ class PM2Manager {
         } else {
           console.log('⏱️  Press Ctrl+C to stop showing logs');
         }
-
-        const { exec } = require('child-process-promise');
         
         if (duration > 0) {
           // Show logs for specific duration
