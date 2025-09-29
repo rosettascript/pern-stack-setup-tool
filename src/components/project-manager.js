@@ -647,8 +647,8 @@ For issues and questions:
       });
 
       await this.setup.safety.safeExecute('project-clone', {
-        repoUrl,
-        clonePath
+        repositoryUrl: repoUrl,
+        cloneLocation: clonePath
       }, async () => {
         await exec(`git clone ${repoUrl} "${clonePath}"`);
 
