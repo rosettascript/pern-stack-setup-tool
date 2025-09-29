@@ -53,6 +53,7 @@ class SafetyFramework {
     this.secureExecutor = new SecureCommandExecutor();
     this.privilegeValidator = new PrivilegeValidator();
     this.dataProtectionManager = new DataProtectionManager();
+    this.currentOperation = null; // Track current operation
     this.safetyMetrics = {
       operations: 0,
       errors: 0,
@@ -585,17 +586,23 @@ class SafetyFramework {
       await fs.writeFile(testFile, 'test');
       await fs.remove(testFile);
 
-      // Test sudo access (with timeout)
-      try {
-        await Promise.race([
-          this.secureExecutor.executeValidated('sudo -n true'),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('sudo timeout')), 5000)
-          )
-        ]);
-        logger.info('✅ Sudo access available');
-      } catch (error) {
-        logger.warn('⚠️  Sudo access not available - manual intervention may be required');
+      // Test sudo access (with timeout) - only if sudo is actually needed
+      // Skip sudo check for operations that don't require it
+      const currentOperation = this.getCurrentOperation();
+      if (currentOperation && this.privilegeValidator.requiresSudo(currentOperation)) {
+        try {
+          await Promise.race([
+            this.secureExecutor.executeValidated('sudo -n true'),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('sudo timeout')), 5000)
+            )
+          ]);
+          logger.info('✅ Sudo access available');
+        } catch (error) {
+          logger.warn('⚠️  Sudo access not available - manual intervention may be required');
+        }
+      } else {
+        logger.info('ℹ️  Skipping sudo check - operation does not require sudo');
       }
 
     } catch (error) {
@@ -871,6 +878,13 @@ class SafetyFramework {
   }
 
   /**
+   * Get current operation
+   */
+  getCurrentOperation() {
+    return this.currentOperation;
+  }
+
+  /**
    * Safe operation wrapper with comprehensive error handling
    */
   async safeExecute(operation, parameters, executor) {
@@ -878,6 +892,9 @@ class SafetyFramework {
     let backupPath = null;
 
     try {
+      // Set current operation for context
+      this.currentOperation = operation;
+
       // Pre-operation validation
       this.validateOperation(operation, parameters);
 
@@ -903,10 +920,12 @@ class SafetyFramework {
       const duration = Date.now() - startTime;
 
       logger.info(`✅ Operation completed: ${operation} (${duration}ms)`);
+      this.currentOperation = null; // Clear current operation
       return result;
 
     } catch (error) {
       this.safetyMetrics.errors++;
+      this.currentOperation = null; // Clear current operation
 
       // Attempt recovery if backup available
       if (backupPath) {
