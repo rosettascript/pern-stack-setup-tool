@@ -203,15 +203,98 @@ class ToolManager {
       // Monitoring and Performance Tools
       htop: {
         name: 'htop',
-        description: 'Interactive process viewer',
+        description: 'Interactive process viewer (Linux/macOS only)',
         category: 'Monitoring',
-        platformSupport: ['linux', 'darwin', 'win32'],
+        platformSupport: ['linux', 'darwin'],
+        requiresSudo: true,
         installCommands: {
           linux: ['sudo apt install -y htop'],
-          darwin: ['brew install htop'],
-          win32: ['choco install htop -y']
+          darwin: ['brew install htop']
         },
-        checkCommand: 'htop --version'
+        alternativeCommands: {
+          linux: ['apt install -y htop', 'snap install htop']
+        },
+        checkCommand: 'htop --version',
+        manualInstallGuide: {
+          linux: [
+            '1. Open a terminal',
+            '2. Run: sudo apt update',
+            '3. Run: sudo apt install htop',
+            '4. Enter your password when prompted',
+            '5. Verify with: htop --version'
+          ],
+          darwin: [
+            '1. Install Homebrew if not already installed',
+            '2. Run: brew install htop',
+            '3. Verify with: htop --version'
+          ]
+        }
+      },
+      taskmanager: {
+        name: 'Task Manager Alternative',
+        description: 'Windows Task Manager + Process Explorer',
+        category: 'Monitoring',
+        platformSupport: ['win32'],
+        installCommands: {
+          win32: ['choco install procexp -y', 'choco install processhacker -y']
+        },
+        checkCommand: 'procexp.exe'
+      },
+      node_monitor: {
+        name: 'Node.js Process Monitor',
+        description: 'Lightweight process monitoring using Node.js (no sudo required)',
+        category: 'Monitoring',
+        platformSupport: ['linux', 'darwin', 'win32'],
+        requiresSudo: false,
+        installCommands: {
+          linux: ['npm install systeminformation'],
+          darwin: ['npm install systeminformation'],
+          win32: ['npm install systeminformation']
+        },
+        checkCommand: 'node -e "try { require(\'./node_modules/systeminformation\'); console.log(\'systeminformation available\'); } catch(e) { process.exit(1); }"',
+        postInstall: ['create_node_monitor_script_local']
+      },
+      sysinfo: {
+        name: 'System Info Tool',
+        description: 'Basic system information using built-in Node.js APIs (works everywhere)',
+        category: 'Monitoring',
+        platformSupport: ['linux', 'darwin', 'win32'],
+        requiresSudo: false,
+        installCommands: {
+          linux: [],
+          darwin: [],
+          win32: []
+        },
+        checkCommand: 'node --version',
+        postInstall: ['create_sysinfo_script']
+      },
+      disk_monitor: {
+        name: 'Disk Usage Monitor',
+        description: 'Monitor disk space and file system usage (no installation required)',
+        category: 'Monitoring',
+        platformSupport: ['linux', 'darwin', 'win32'],
+        requiresSudo: false,
+        installCommands: {
+          linux: [],
+          darwin: [],
+          win32: []
+        },
+        checkCommand: 'node --version',
+        postInstall: ['create_disk_monitor_script']
+      },
+      network_monitor: {
+        name: 'Network Monitor',
+        description: 'Basic network interface and connection monitoring',
+        category: 'Monitoring',
+        platformSupport: ['linux', 'darwin', 'win32'],
+        requiresSudo: false,
+        installCommands: {
+          linux: [],
+          darwin: [],
+          win32: []
+        },
+        checkCommand: 'node --version',
+        postInstall: ['create_network_monitor_script']
       },
       nmap: {
         name: 'nmap',
@@ -401,7 +484,9 @@ class ToolManager {
         return this.showInterface();
       }
 
-      await this.installMultipleTools(tools);
+      // Ensure tools is an array
+      const toolKeys = Array.isArray(tools) ? tools : [tools];
+      await this.installMultipleTools(toolKeys);
       await this.showInterface();
 
     } catch (error) {
@@ -440,7 +525,9 @@ class ToolManager {
         return this.showInterface();
       }
 
-      await this.installMultipleTools(tools);
+      // Ensure tools is an array
+      const toolKeys = Array.isArray(tools) ? tools : [tools];
+      await this.installMultipleTools(toolKeys);
       await this.showInterface();
 
     } catch (error) {
@@ -473,7 +560,9 @@ class ToolManager {
         return this.showInterface();
       }
 
-      await this.installMultipleTools(tools);
+      // Ensure tools is an array
+      const toolKeys = Array.isArray(tools) ? tools : [tools];
+      await this.installMultipleTools(toolKeys);
       await this.showInterface();
 
     } catch (error) {
@@ -482,32 +571,165 @@ class ToolManager {
   }
 
   /**
-   * Show monitoring tools interface
+   * Show monitoring tools interface with improved reliability
    */
   async showMonitoringToolsInterface() {
     try {
+      console.log('\n🖥️  Monitoring Tools');
+      console.log('─'.repeat(40));
+
       const monitoringTools = this.getToolsByCategory('Monitoring');
+
+      if (monitoringTools.length === 0) {
+        console.log(`No monitoring tools available for ${this.getPlatformName()}`);
+        return this.showInterface();
+      }
+
+      // Separate tools into working and problematic categories
+      const workingTools = monitoringTools.filter(tool => {
+        // Tools that work without sudo or installation
+        return tool.key === 'sysinfo' ||
+               (!tool.requiresSudo && tool.installCommands[this.platform]?.length === 0);
+      });
+
+      const installableTools = monitoringTools.filter(tool => {
+        // Tools that might work with user guidance
+        return tool.key !== 'sysinfo' &&
+               (!tool.requiresSudo || tool.key === 'node_monitor');
+      });
+
+      const sudoRequiredTools = monitoringTools.filter(tool => {
+        // Tools that definitely require sudo (shown with warning)
+        return tool.requiresSudo && tool.key !== 'node_monitor';
+      });
+
+      const choices = [];
+
+      // Add working tools first (guaranteed to work)
+      if (workingTools.length > 0) {
+        choices.push({
+          name: '🚀 WORKING TOOLS (No Installation Required)',
+          value: null,
+          disabled: true
+        });
+        workingTools.forEach(tool => {
+          choices.push({
+            name: `✅ ${tool.name} - ${tool.description}`,
+            value: tool.key
+          });
+        });
+        choices.push(new inquirer.Separator());
+      }
+
+      // Add installable tools (might work)
+      if (installableTools.length > 0) {
+        choices.push({
+          name: '📦 INSTALLABLE TOOLS (May require setup)',
+          value: null,
+          disabled: true
+        });
+        installableTools.forEach(tool => {
+          choices.push({
+            name: `📦 ${tool.name} - ${tool.description}`,
+            value: tool.key
+          });
+        });
+        choices.push(new inquirer.Separator());
+      }
+
+      // Add sudo-required tools (likely to fail, shown with warning)
+      if (sudoRequiredTools.length > 0) {
+        choices.push({
+          name: '⚠️  SYSTEM TOOLS (Require sudo/admin privileges)',
+          value: null,
+          disabled: true
+        });
+        sudoRequiredTools.forEach(tool => {
+          choices.push({
+            name: `⚠️  ${tool.name} - ${tool.description}`,
+            value: tool.key
+          });
+        });
+        choices.push(new inquirer.Separator());
+      }
+
+      choices.push('Go back');
+
       const { tools } = await inquirer.prompt({
         type: 'list',
         name: 'tools',
-        message: 'Monitoring Tools Section',
+        message: 'Select a monitoring tool to install/setup:',
+        choices: choices,
         loop: false,
-        choices: [
-          ...monitoringTools.map(tool => ({
-            name: `${tool.name} - ${tool.description}`,
-            value: tool.key
-          })),
-          new inquirer.Separator('──────────────'),
-          'Go back'
-        ]
+        pageSize: 15
       });
 
       if (tools === 'Go back') {
         return this.showInterface();
       }
 
-      await this.installMultipleTools(tools);
-      await this.showInterface();
+      // Get the selected tool
+      const selectedTool = monitoringTools.find(tool => tool.key === tools);
+      if (!selectedTool) {
+        console.log('❌ Tool not found');
+        return this.showMonitoringToolsInterface();
+      }
+
+      // Show installation approach based on tool type
+      if (selectedTool.requiresSudo && this.platform === 'linux') {
+        console.log(`\n⚠️  ${selectedTool.name} requires system administrator privileges.`);
+        console.log('This tool will likely fail in this environment.');
+        console.log('\n💡 Recommended alternatives:');
+        if (workingTools.length > 0) {
+          workingTools.forEach(tool => {
+            console.log(`   • ${tool.name}`);
+          });
+        }
+
+        const { proceed } = await inquirer.prompt({
+          type: 'confirm',
+          name: 'proceed',
+          message: 'Do you still want to try installing this system tool?',
+          default: false
+        });
+
+        if (!proceed) {
+          return this.showMonitoringToolsInterface();
+        }
+      }
+
+      // Attempt installation
+      try {
+        await this.installTool(tools);
+        console.log(`\n✅ ${selectedTool.name} setup completed!`);
+      } catch (error) {
+        console.log(`\n❌ ${selectedTool.name} setup failed: ${error.message}`);
+
+        // Offer alternatives for failed tools
+        if (workingTools.length > 0) {
+          console.log('\n💡 Try these working alternatives instead:');
+          workingTools.forEach(tool => {
+            console.log(`   • ${tool.name} - ${tool.description}`);
+          });
+        }
+      }
+
+      // Ask to continue or go back
+      const { nextAction } = await inquirer.prompt({
+        type: 'list',
+        name: 'nextAction',
+        message: 'What would you like to do next?',
+        choices: [
+          'Install another monitoring tool',
+          'Go back to main menu'
+        ]
+      });
+
+      if (nextAction === 'Install another monitoring tool') {
+        return this.showMonitoringToolsInterface();
+      } else {
+        return this.showInterface();
+      }
 
     } catch (error) {
       await this.setup.handleError('monitoring-tools', error);
@@ -539,7 +761,9 @@ class ToolManager {
         return this.showInterface();
       }
 
-      await this.installMultipleTools(tools);
+      // Ensure tools is an array
+      const toolKeys = Array.isArray(tools) ? tools : [tools];
+      await this.installMultipleTools(toolKeys);
       await this.showInterface();
 
     } catch (error) {
@@ -574,10 +798,13 @@ class ToolManager {
   getToolsByCategory(category) {
     return Object.entries(this.availableTools)
       .filter(([key, tool]) =>
+        tool && 
         tool.category === category &&
+        tool.platformSupport && 
         tool.platformSupport.includes(this.platform)
       )
-      .map(([key, tool]) => ({ key, ...tool }));
+      .map(([key, tool]) => ({ key, ...tool }))
+      .filter(tool => tool.name && tool.description); // Ensure required properties exist
   }
 
   /**
@@ -594,18 +821,26 @@ class ToolManager {
       const progress = `${i + 1}/${totalTools}`;
 
       try {
-        multiSpinner.text = `[${progress}] Installing ${this.availableTools[toolKey].name}...`;
+        const tool = this.availableTools[toolKey];
+        if (!tool || !tool.name) {
+          multiSpinner.text = `[${progress}] ❌ Tool ${toolKey} not found`;
+          results.push({ tool: toolKey, success: false, error: 'Tool definition not found' });
+          continue;
+        }
+
+        multiSpinner.text = `[${progress}] Installing ${tool.name}...`;
 
         const result = await this.installTool(toolKey);
         results.push({ tool: toolKey, success: true, result });
 
-        multiSpinner.text = `[${progress}] ✅ ${this.availableTools[toolKey].name} installed`;
+        multiSpinner.text = `[${progress}] ✅ ${tool.name} installed`;
 
       } catch (error) {
-        multiSpinner.text = `[${progress}] ❌ Failed to install ${this.availableTools[toolKey].name}`;
+        const toolName = this.availableTools[toolKey]?.name || toolKey;
+        multiSpinner.text = `[${progress}] ❌ Failed to install ${toolName}`;
 
         // Enhanced error logging
-        console.error(`❌ Failed to install ${this.availableTools[toolKey].name}:`, error.message);
+        console.error(`❌ Failed to install ${toolName}:`, error.message);
         this.logger.error(`Tool installation failed: ${toolKey}`, {
           tool: toolKey,
           platform: this.platform,
@@ -657,6 +892,59 @@ class ToolManager {
     } else {
       console.log(`\n🎉 All tools installed successfully on ${this.getPlatformName()}!`);
     }
+
+    // Stop the spinner
+    multiSpinner.stop();
+  }
+
+  /**
+   * Show manual installation guide for a tool
+   */
+  async showManualInstallGuide(tool) {
+    console.log(`\n📋 Manual Installation Guide for ${tool.name}`);
+    console.log(`Platform: ${this.getPlatformName()}`);
+    console.log('─'.repeat(50));
+    
+    if (tool.manualInstallGuide && tool.manualInstallGuide[this.platform]) {
+      const steps = tool.manualInstallGuide[this.platform];
+      steps.forEach(step => {
+        console.log(`   ${step}`);
+      });
+    } else if (tool.installCommands && tool.installCommands[this.platform]) {
+      console.log('   Manual installation commands:');
+      tool.installCommands[this.platform].forEach(cmd => {
+        console.log(`   • ${cmd}`);
+      });
+    }
+    
+    console.log('\n💡 After installation, you can verify with:');
+    if (tool.checkCommand) {
+      console.log(`   ${tool.checkCommand}`);
+    }
+    
+    console.log('\n🔄 Run the tool installer again to verify installation.');
+    
+    // Ask if user wants to try verification
+    const { verifyNow } = await inquirer.prompt({
+      type: 'confirm',
+      name: 'verifyNow',
+      message: 'Would you like to verify if the tool is now installed?',
+      default: true
+    });
+    
+    if (verifyNow) {
+      const isInstalled = await this.verifyInstallation(tool);
+      if (isInstalled) {
+        console.log(`✅ ${tool.name} is now installed and working!`);
+        return { success: true, verified: true };
+      } else {
+        console.log(`❌ ${tool.name} is still not installed or not working properly.`);
+        console.log(`💡 Please follow the manual installation steps above.`);
+        return { success: false, verified: false };
+      }
+    }
+    
+    return { success: false, verified: false, manual: true };
   }
 
   /**
@@ -674,8 +962,58 @@ class ToolManager {
       throw new Error(`${tool.name} is not supported on ${this.getPlatformName()}`);
     }
 
+    // Check if tool is already installed first
+    if (await this.isToolInstalled(tool.checkCommand)) {
+      console.log(`✅ ${tool.name} is already installed!`);
+      return {
+        success: true,
+        tool: toolKey,
+        message: 'Already installed',
+        platform: this.platform,
+        timestamp: new Date().toISOString()
+      };
+    }
+
     // Show platform-specific prerequisites
     await this.showPlatformPrerequisites(tool);
+
+    // Check if tool requires sudo and offer manual installation option
+    if (tool.requiresSudo && this.platform === 'linux') {
+      console.log(`⚠️  ${tool.name} requires sudo privileges for installation.`);
+      const { installMethod } = await inquirer.prompt({
+        type: 'list',
+        name: 'installMethod',
+        message: 'How would you like to proceed?',
+        choices: [
+          {
+            name: 'Try automatic installation (may require password)',
+            value: 'automatic'
+          },
+          {
+            name: 'Show manual installation guide',
+            value: 'manual'
+          },
+          {
+            name: 'Skip this tool',
+            value: 'skip'
+          }
+        ]
+      });
+
+      if (installMethod === 'manual') {
+        return await this.showManualInstallGuide(tool);
+      } else if (installMethod === 'skip') {
+        console.log(`⏭️  Skipping ${tool.name} installation.`);
+        return {
+          success: false,
+          tool: toolKey,
+          message: 'Skipped by user',
+          platform: this.platform,
+          timestamp: new Date().toISOString()
+        };
+      }
+      // Continue with automatic installation if chosen
+    }
 
     // Check dependencies
     if (tool.dependencies) {
@@ -689,58 +1027,231 @@ class ToolManager {
     }
 
     const installCommands = tool.installCommands[this.platform];
+    const hasCommands = installCommands && installCommands.length > 0;
 
-    if (!installCommands || installCommands.length === 0) {
-      throw new Error(`No installation commands available for ${tool.name} on ${this.platform}`);
+    if (!hasCommands && !tool.postInstall) {
+      throw new Error(`No installation commands or post-install steps available for ${tool.name} on ${this.platform}`);
     }
 
-    return await this.setup.safety.safeExecute(`tool-install-${toolKey}`, {
-      toolName: tool.name,
-      platform: this.platform,
-      commands: installCommands
-    }, async () => {
-      const results = [];
+    console.log(`🔧 Installing ${tool.name}...`);
 
+    // Start installation spinner
+    const installSpinner = ora(`Installing ${tool.name}...`).start();
+
+    const results = [];
+
+    if (hasCommands) {
       for (const command of installCommands) {
-        console.log(`Executing: ${command}`);
+      console.log(`📦 Executing: ${command}`);
+      
+      // Show user-friendly message for sudo commands
+      if (command.includes('sudo') && this.platform === 'linux') {
+        console.log(`💡 You may be prompted for your password to install system packages`);
+        console.log(`💡 If the installation hangs, press Ctrl+C and run the command manually`);
+      }
 
-        try {
-          const result = await exec(command);
-          results.push({ command, success: true, output: result.stdout });
-          console.log(`✅ Completed: ${command}`);
+      try {
+        // Update spinner for current command
+        installSpinner.text = `Executing: ${command.split(' ')[0]}...`;
 
-        } catch (error) {
-          results.push({ command, success: false, error: error.message });
-          console.log(`❌ Failed: ${command}`);
-          throw error;
+        // Use spawn instead of exec to avoid blocking issues
+        const { spawn } = require('child_process');
+        const timeoutMs = 30000; // 30 seconds timeout (reduced)
+
+        const result = await new Promise((resolve, reject) => {
+          const parts = command.split(' ');
+          const cmd = parts[0];
+          const args = parts.slice(1);
+          
+          const child = spawn(cmd, args, { 
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false
+          });
+          
+          let stdout = '';
+          let stderr = '';
+          
+          child.stdout.on('data', (data) => {
+            stdout += data.toString();
+          });
+          
+          child.stderr.on('data', (data) => {
+            stderr += data.toString();
+          });
+          
+          const timeout = setTimeout(() => {
+            child.kill('SIGTERM');
+            reject(new Error('Command timed out after 30 seconds'));
+          }, timeoutMs);
+          
+          child.on('close', (code) => {
+            clearTimeout(timeout);
+            if (code === 0) {
+              resolve({ stdout, stderr });
+            } else {
+              reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
+            }
+          });
+          
+          child.on('error', (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        });
+        
+        results.push({ command, success: true, output: result.stdout });
+        installSpinner.succeed(`Completed: ${command.split(' ')[0]}`);
+
+      } catch (error) {
+        results.push({ command, success: false, error: error.message });
+        installSpinner.fail(`Failed: ${command.split(' ')[0]}`);
+
+        // Provide user-friendly error messages and alternatives
+        if (error.message.includes('timed out')) {
+          console.log(`⏰ Command timed out - this usually means it's waiting for input`);
+          console.log(`💡 Try running the command manually in a separate terminal:`);
+          console.log(`   ${command}`);
+          console.log(`💡 Or install the package manually and then run the tool again`);
+        } else if (error.message.includes('sudo') || error.message.includes('password')) {
+          console.log(`🔐 This command requires sudo privileges`);
+          console.log(`💡 Try running manually: ${command}`);
+          console.log(`💡 Or install without sudo: apt install ${command.split(' ').pop()}`);
+        } else if (error.message.includes('not found')) {
+          console.log(`💡 Package manager or package not found`);
+          console.log(`💡 Try updating package lists first: sudo apt update`);
+        } else if (error.message.includes('permission')) {
+          console.log(`💡 Permission denied - try running with administrator privileges`);
+        }
+        
+        // Try alternative commands if available
+        if (tool.alternativeCommands && tool.alternativeCommands[this.platform]) {
+          console.log(`🔄 Trying alternative installation method...`);
+          const altCommands = tool.alternativeCommands[this.platform];
+          
+          for (const altCommand of altCommands) {
+            try {
+              console.log(`📦 Trying: ${altCommand}`);
+              const altResult = await new Promise((resolve, reject) => {
+                const { spawn } = require('child_process');
+                const parts = altCommand.split(' ');
+                const cmd = parts[0];
+                const args = parts.slice(1);
+                
+                const child = spawn(cmd, args, { 
+                  stdio: ['ignore', 'pipe', 'pipe'],
+                  detached: false
+                });
+                
+                let stdout = '';
+                let stderr = '';
+                
+                child.stdout.on('data', (data) => {
+                  stdout += data.toString();
+                });
+                
+                child.stderr.on('data', (data) => {
+                  stderr += data.toString();
+                });
+                
+                const timeout = setTimeout(() => {
+                  child.kill('SIGTERM');
+                  reject(new Error('Alternative command timed out'));
+                }, 30000);
+                
+                child.on('close', (code) => {
+                  clearTimeout(timeout);
+                  if (code === 0) {
+                    resolve({ stdout, stderr });
+                  } else {
+                    reject(new Error(`Alternative command failed with exit code ${code}: ${stderr}`));
+                  }
+                });
+                
+                child.on('error', (error) => {
+                  clearTimeout(timeout);
+                  reject(error);
+                });
+              });
+              
+              results.push({ command: altCommand, success: true, output: altResult.stdout, alternative: true });
+              console.log(`✅ Alternative command succeeded: ${altCommand.split(' ')[0]}`);
+              break; // Exit loop if one alternative succeeds
+              
+            } catch (altError) {
+              results.push({ command: altCommand, success: false, error: altError.message, alternative: true });
+              console.log(`❌ Alternative failed: ${altCommand.split(' ')[0]}`);
+            }
+          }
+        } else {
+          // Don't throw error immediately, try to continue with other commands
+          console.log(`⚠️  Continuing with remaining commands...`);
         }
       }
+    }
+    }
 
-      // Run post-installation steps
-      if (tool.postInstall) {
-        for (const postStep of tool.postInstall) {
-          await this.runPostInstallStep(postStep, tool);
-        }
+    // Run post-installation steps (always run if they exist, even with no install commands)
+    if (tool.postInstall) {
+      for (const postStep of tool.postInstall) {
+        await this.runPostInstallStep(postStep, tool);
       }
+    }
 
-      // Verify installation
-      console.log(`Verifying ${tool.name} installation...`);
-      const isInstalled = await this.verifyInstallation(tool);
-      if (isInstalled) {
-        console.log(`✅ ${tool.name} installation verified`);
-      } else {
-        console.log(`❌ ${tool.name} installation verification failed`);
-        throw new Error(`Installation verification failed for ${tool.name}`);
+    // Check if any commands succeeded
+    const successfulCommands = results.filter(r => r.success);
+    const failedCommands = results.filter(r => !r.success);
+    
+    if (successfulCommands.length === 0) {
+      console.log(`❌ All installation commands failed for ${tool.name}`);
+      console.log(`📋 Summary:`);
+      failedCommands.forEach(cmd => {
+        console.log(`   ❌ ${cmd.command}: ${cmd.error}`);
+      });
+      throw new Error(`Installation failed for ${tool.name}`);
+    }
+    
+    // Verify installation if any commands succeeded
+    console.log(`Verifying ${tool.name} installation...`);
+    const isInstalled = await this.verifyInstallation(tool);
+    
+    if (isInstalled) {
+      console.log(`✅ ${tool.name} installation verified successfully!`);
+      if (failedCommands.length > 0) {
+        console.log(`⚠️  Some commands failed but the tool is working:`);
+        failedCommands.forEach(cmd => {
+          console.log(`   ⚠️  ${cmd.command}: ${cmd.error}`);
+        });
       }
+    } else {
+      console.log(`❌ ${tool.name} installation verification failed`);
+      console.log(`📋 Command results:`);
+      results.forEach(result => {
+        const status = result.success ? '✅' : '❌';
+        console.log(`   ${status} ${result.command}`);
+      });
+      
+      if (failedCommands.length > 0) {
+        console.log(`\n💡 Troubleshooting suggestions:`);
+        console.log(`   1. Try running the failed commands manually`);
+        console.log(`   2. Check if the package is available in your package manager`);
+        console.log(`   3. Update your package lists: sudo apt update`);
+      }
+      
+      throw new Error(`Installation verification failed for ${tool.name}`);
+    }
 
-      return {
-        success: true,
-        tool: toolKey,
-        commands: results,
-        verified: true,
-        timestamp: new Date().toISOString()
-      };
-    });
+    // Stop the spinner
+    installSpinner.stop();
+
+    return {
+      success: true,
+      tool: toolKey,
+      commands: results,
+      successfulCommands: successfulCommands.length,
+      failedCommands: failedCommands.length,
+      verified: isInstalled,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
@@ -804,6 +1315,21 @@ class ToolManager {
       case 'mongodb_post_install':
         await this.mongodbPostInstall();
         break;
+      case 'create_node_monitor_script':
+        await this.createNodeMonitorScript();
+        break;
+      case 'create_node_monitor_script_local':
+        await this.createNodeMonitorScriptLocal();
+        break;
+      case 'create_sysinfo_script':
+        await this.createSysinfoScript();
+        break;
+      case 'create_disk_monitor_script':
+        await this.createDiskMonitorScript();
+        break;
+      case 'create_network_monitor_script':
+        await this.createNetworkMonitorScript();
+        break;
     }
   }
 
@@ -853,6 +1379,346 @@ class ToolManager {
       }
     } catch (error) {
       console.warn('⚠️  Redis post-install setup failed:', error.message);
+    }
+  }
+
+  /**
+   * Create Node.js monitor script (local installation)
+   */
+  async createNodeMonitorScriptLocal() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      const scriptContent = `#!/usr/bin/env node
+const si = require('systeminformation');
+
+async function showSystemInfo() {
+  try {
+    console.log('🖥️  System Information');
+    console.log('─'.repeat(40));
+
+    const cpu = await si.cpu();
+    const mem = await si.mem();
+    const processes = await si.processes();
+
+    console.log(\`CPU: \${cpu.manufacturer} \${cpu.brand}\`);
+    console.log(\`Cores: \${cpu.cores}\`);
+    console.log(\`Memory: \${(mem.total / 1024 / 1024 / 1024).toFixed(1)}GB total, \${((mem.used / mem.total) * 100).toFixed(1)}% used\`);
+    console.log(\`Processes: \${processes.all} total, \${processes.running} running\`);
+
+    console.log('\\n📊 Top 5 processes by CPU usage:');
+    processes.list.slice(0, 5).forEach((proc, i) => {
+      console.log(\`\${i + 1}. \${proc.name} - \${proc.cpu.toFixed(1)}% CPU, \${proc.mem.toFixed(1)}% RAM\`);
+    });
+
+  } catch (error) {
+    console.error('Error getting system info:', error.message);
+  }
+}
+
+showSystemInfo();
+`;
+
+      const scriptPath = path.join(process.cwd(), 'node-monitor.js');
+      fs.writeFileSync(scriptPath, scriptContent);
+
+      // Make it executable on Unix systems
+      if (this.platform !== 'win32') {
+        const { spawn } = require('child_process');
+        const child = spawn('chmod', ['+x', scriptPath], { stdio: 'ignore' });
+        await new Promise((resolve) => child.on('close', resolve));
+      }
+
+      console.log(`✅ Node.js monitor script created: ${scriptPath}`);
+      console.log(`💡 Run it with: node ${scriptPath}`);
+
+    } catch (error) {
+      console.log(`⚠️  Could not create monitor script: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create system info script (uses built-in Node.js APIs)
+   */
+  async createSysinfoScript() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      const scriptContent = `#!/usr/bin/env node
+const os = require('os');
+
+console.log('🖥️  Basic System Information');
+console.log('─'.repeat(40));
+
+console.log(\`Platform: \${os.platform()} \${os.arch()}\`);
+console.log(\`OS Release: \${os.release()}\`);
+console.log(\`Total Memory: \${(os.totalmem() / 1024 / 1024 / 1024).toFixed(1)} GB\`);
+console.log(\`Free Memory: \${(os.freemem() / 1024 / 1024 / 1024).toFixed(1)} GB\`);
+console.log(\`CPU Cores: \${os.cpus().length}\`);
+console.log(\`CPU Model: \${os.cpus()[0].model}\`);
+console.log(\`Uptime: \${(os.uptime() / 3600).toFixed(1)} hours\`);
+console.log(\`Load Average: \${os.loadavg().map(x => x.toFixed(2)).join(', ')}\`);
+
+console.log('\\n🏠 User Information:');
+console.log(\`Username: \${os.userInfo().username}\`);
+console.log(\`Home Directory: \${os.homedir()}\`);
+console.log(\`Temp Directory: \${os.tmpdir()}\`);
+
+console.log('\\n📁 Network Interfaces:');
+const interfaces = os.networkInterfaces();
+for (const [name, addrs] of Object.entries(interfaces)) {
+  console.log(\`  \${name}:\`);
+  addrs.forEach(addr => {
+    if (addr.family === 'IPv4' && !addr.internal) {
+      console.log(\`    \${addr.address}\`);
+    }
+  });
+}
+`;
+
+      const scriptPath = path.join(process.cwd(), 'sysinfo.js');
+      fs.writeFileSync(scriptPath, scriptContent);
+
+      // Make it executable on Unix systems
+      if (this.platform !== 'win32') {
+        const { spawn } = require('child_process');
+        const child = spawn('chmod', ['+x', scriptPath], { stdio: 'ignore' });
+        await new Promise((resolve) => child.on('close', resolve));
+      }
+
+      console.log(`✅ System info script created: ${scriptPath}`);
+      console.log(`💡 Run it with: node ${scriptPath}`);
+
+    } catch (error) {
+      console.log(`⚠️  Could not create system info script: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create disk usage monitor script
+   */
+  async createDiskMonitorScript() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      const scriptContent = `#!/usr/bin/env node
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+console.log('💾 Disk Usage Monitor');
+console.log('─'.repeat(40));
+
+// Get disk usage for current directory and system info
+try {
+  const cwd = process.cwd();
+  const stats = fs.statSync(cwd);
+  const totalSpace = os.totalmem(); // This is RAM, not disk space
+  const freeSpace = os.freemem();
+
+  console.log(\`Current Directory: \${cwd}\`);
+
+  // Get disk usage using basic Node.js APIs
+  console.log(\`\\n📊 System Memory (RAM):\`);
+  console.log(\`Total RAM: \${(totalSpace / 1024 / 1024 / 1024).toFixed(1)} GB\`);
+  console.log(\`Free RAM: \${(freeSpace / 1024 / 1024 / 1024).toFixed(1)} GB\`);
+  console.log(\`Used RAM: \${((totalSpace - freeSpace) / 1024 / 1024 / 1024).toFixed(1)} GB\`);
+  console.log(\`RAM Usage: \${((1 - freeSpace / totalSpace) * 100).toFixed(1)}%\`);
+
+  // Try to get basic directory size (limited)
+  console.log(\`\\n📁 Current Directory Contents:\`);
+  try {
+    const files = fs.readdirSync(cwd);
+    const fileCount = files.length;
+    console.log(\`Files/Directories in current folder: \${fileCount}\`);
+
+    // Show largest files in current directory
+    const fileStats = files.map(file => {
+      try {
+        const filePath = path.join(cwd, file);
+        const stat = fs.statSync(filePath);
+        return { name: file, size: stat.size, isDir: stat.isDirectory() };
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    const sortedFiles = fileStats.sort((a, b) => b.size - a.size).slice(0, 10);
+    console.log('\\n📄 Largest files in current directory:');
+    sortedFiles.forEach((file, i) => {
+      if (!file.isDir && file.size > 0) {
+        const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+        console.log(\`\${i + 1}. \${file.name} - \${sizeMB} MB\`);
+      }
+    });
+
+  } catch (dirError) {
+    console.log('Could not read directory contents');
+  }
+
+  console.log('\\n💡 For detailed disk space analysis, consider using:');
+  console.log('   • df -h (Linux/macOS)');
+  console.log('   • du -sh * (directory sizes)');
+  console.log('   • System monitor tools');
+
+} catch (error) {
+  console.log('Error getting disk information:', error.message);
+}
+`;
+
+      const scriptPath = path.join(process.cwd(), 'disk-monitor.js');
+      fs.writeFileSync(scriptPath, scriptContent);
+
+      // Make it executable on Unix systems
+      if (this.platform !== 'win32') {
+        const { spawn } = require('child_process');
+        const child = spawn('chmod', ['+x', scriptPath], { stdio: 'ignore' });
+        await new Promise((resolve) => child.on('close', resolve));
+      }
+
+      console.log(`✅ Disk monitor script created: ${scriptPath}`);
+      console.log(`💡 Run it with: node ${scriptPath}`);
+
+    } catch (error) {
+      console.log(`⚠️  Could not create disk monitor script: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create network monitor script
+   */
+  async createNetworkMonitorScript() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      const scriptContent = `#!/usr/bin/env node
+const os = require('os');
+
+console.log('🌐 Network Monitor');
+console.log('─'.repeat(40));
+
+const interfaces = os.networkInterfaces();
+
+console.log('📡 Network Interfaces:');
+let interfaceCount = 0;
+
+for (const [name, addrs] of Object.entries(interfaces)) {
+  interfaceCount++;
+  console.log(\`\\n\${interfaceCount}. \${name}:\`);
+
+  if (!addrs || addrs.length === 0) {
+    console.log('   No addresses configured');
+    continue;
+  }
+
+  addrs.forEach((addr, index) => {
+    const type = addr.family === 'IPv4' ? 'IPv4' : 'IPv6';
+    const internal = addr.internal ? '(internal)' : '';
+
+    if (addr.family === 'IPv4') {
+      console.log(\`   \${type}: \${addr.address} \${internal}\`);
+      if (addr.netmask) {
+        console.log(\`   Netmask: \${addr.netmask}\`);
+      }
+    } else if (addr.family === 'IPv6') {
+      console.log(\`   \${type}: \${addr.address} \${internal}\`);
+    }
+  });
+
+  // Try to get interface status (limited info available)
+  console.log(\`   Status: \${addrs.some(addr => !addr.internal) ? 'Active' : 'Internal/Localhost'}\`);
+}
+
+console.log(\`\\n📊 Summary:\`);
+console.log(\`Total interfaces: \${interfaceCount}\`);
+console.log(\`Active external interfaces: \${Object.values(interfaces).filter(addrs => addrs && addrs.some(addr => !addr.internal)).length}\`);
+
+console.log('\\n💡 For advanced network monitoring, consider:');
+console.log('   • ping -c 4 google.com (connectivity test)');
+console.log('   • netstat -tuln (open ports)');
+console.log('   • ifconfig or ip addr (detailed interface info)');
+console.log('   • System network monitoring tools');
+`;
+
+      const scriptPath = path.join(process.cwd(), 'network-monitor.js');
+      fs.writeFileSync(scriptPath, scriptContent);
+
+      // Make it executable on Unix systems
+      if (this.platform !== 'win32') {
+        const { spawn } = require('child_process');
+        const child = spawn('chmod', ['+x', scriptPath], { stdio: 'ignore' });
+        await new Promise((resolve) => child.on('close', resolve));
+      }
+
+      console.log(`✅ Network monitor script created: ${scriptPath}`);
+      console.log(`💡 Run it with: node ${scriptPath}`);
+
+    } catch (error) {
+      console.log(`⚠️  Could not create network monitor script: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create Node.js monitor script
+   */
+  async createNodeMonitorScript() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+      
+      const scriptContent = `#!/usr/bin/env node
+const si = require('systeminformation');
+
+async function showSystemInfo() {
+  try {
+    console.log('🖥️  System Information');
+    console.log('─'.repeat(40));
+    
+    const cpu = await si.cpu();
+    const mem = await si.mem();
+    const processes = await si.processes();
+    
+    console.log(\`CPU: \${cpu.manufacturer} \${cpu.brand}\`);
+    console.log(\`Cores: \${cpu.cores}\`);
+    console.log(\`Memory: \${(mem.total / 1024 / 1024 / 1024).toFixed(1)}GB total, \${((mem.used / mem.total) * 100).toFixed(1)}% used\`);
+    console.log(\`Processes: \${processes.all} total, \${processes.running} running\`);
+    
+    console.log('\\n📊 Top 5 processes by CPU usage:');
+    processes.list.slice(0, 5).forEach((proc, i) => {
+      console.log(\`\${i + 1}. \${proc.name} - \${proc.cpu.toFixed(1)}% CPU, \${proc.mem.toFixed(1)}% RAM\`);
+    });
+    
+  } catch (error) {
+    console.error('Error getting system info:', error.message);
+  }
+}
+
+showSystemInfo();
+`;
+
+      const scriptPath = path.join(os.homedir(), 'node-monitor.js');
+      fs.writeFileSync(scriptPath, scriptContent);
+      
+      // Make it executable on Unix systems
+      if (this.platform !== 'win32') {
+        const { exec } = require('child_process');
+        await exec(`chmod +x ${scriptPath}`);
+      }
+      
+      console.log(`✅ Node.js monitor script created: ${scriptPath}`);
+      console.log(`💡 Run it with: node ${scriptPath}`);
+      
+    } catch (error) {
+      console.log(`⚠️  Could not create monitor script: ${error.message}`);
     }
   }
 
@@ -1043,13 +1909,17 @@ class ToolManager {
       console.log(`📋 Prerequisites for ${tool.name} on Windows:`);
       console.log('   • Windows 10/11 or Windows Server');
       console.log('   • PowerShell 5.1 or later');
-      console.log('   • Chocolatey package manager (will be installed if missing)');
+      console.log('   • Chocolatey package manager');
+      console.log('   • Administrator privileges');
       if (tool.dependencies && tool.dependencies.length > 0) {
         console.log(`   • Dependencies: ${tool.dependencies.join(', ')}`);
       }
+      
+      console.log(`\n💡 Windows Users: If Chocolatey is not installed, run this command in PowerShell as Administrator:`);
+      console.log(`   Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`);
     } else if (this.platform === 'linux') {
       console.log(`📋 Prerequisites for ${tool.name} on Linux:`);
-      console.log('   • sudo privileges');
+      console.log('   • sudo privileges (you may be prompted for password)');
       console.log('   • APT package manager');
       if (tool.dependencies && tool.dependencies.length > 0) {
         console.log(`   • Dependencies: ${tool.dependencies.join(', ')}`);

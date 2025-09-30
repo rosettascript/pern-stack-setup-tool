@@ -161,7 +161,9 @@ class SecurityManager {
             value: index
           })),
           'Create new project',
-          'Enter custom path'
+          'Enter custom path',
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
 
@@ -186,6 +188,10 @@ class SecurityManager {
         this.config.set('project.path', customPath);
         this.config.set('project.type', this.detectProjectType(customPath));
         return;
+      }
+
+      if (selectedProject === 'Go back') {
+        return this.setup.showMainInterface();
       }
 
       const selectedProjectData = existingProjects[selectedProject];

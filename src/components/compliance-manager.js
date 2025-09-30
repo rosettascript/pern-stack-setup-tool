@@ -352,6 +352,7 @@ class ComplianceManager {
       this.config.set('environments.development', envConfig);
 
       console.log('✅ Development environment configured');
+      return this.environmentVariablesSetup();
     } catch (error) {
       await this.setup.handleError('dev-env-setup', error);
     }
@@ -386,6 +387,7 @@ class ComplianceManager {
       this.config.set('environments.production', envConfig);
 
       console.log('✅ Production environment configured');
+      return this.environmentVariablesSetup();
     } catch (error) {
       await this.setup.handleError('prod-env-setup', error);
     }
@@ -411,6 +413,7 @@ class ComplianceManager {
       this.config.set('environments.test', envConfig);
 
       console.log('✅ Testing environment configured');
+      return this.environmentVariablesSetup();
     } catch (error) {
       await this.setup.handleError('test-env-setup', error);
     }
@@ -454,6 +457,9 @@ class ComplianceManager {
 
       await this.createEnvironmentFile('.env', envConfig);
       console.log('✅ .env file created');
+      
+      // Return to environment variables setup menu
+      return this.environmentVariablesSetup();
     } catch (error) {
       await this.setup.handleError('env-file-creation', error);
     }
@@ -486,6 +492,9 @@ class ComplianceManager {
       } else {
         console.log(`❌ Missing required variables: ${missing.join(', ')}`);
       }
+      
+      // Return to environment variables setup menu
+      return this.environmentVariablesSetup();
     } catch (error) {
       await this.setup.handleError('env-file-validation', error);
     }
@@ -1890,6 +1899,9 @@ class ComplianceManager {
 
       this.config.set('logging.winston', winstonConfig);
       console.log('✅ Winston logging configured');
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('winston-config', error);
     }
@@ -1924,6 +1936,9 @@ class ComplianceManager {
 
       this.config.set('logging.morgan', morganConfig);
       console.log('✅ Morgan HTTP logging configured');
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('morgan-config', error);
     }
@@ -1965,6 +1980,9 @@ class ComplianceManager {
 
       this.config.set('logging.database', dbLoggingConfig);
       console.log('✅ Database logging configured');
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('db-logging-config', error);
     }
@@ -2010,6 +2028,9 @@ class ComplianceManager {
       } else {
         console.log('ℹ️  Custom error tracking - manual configuration required');
       }
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('error-tracking-config', error);
     }
@@ -2044,6 +2065,9 @@ class ComplianceManager {
 
       this.config.set('logging.rotation', logRotationConfig);
       console.log('✅ Log rotation configured');
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('log-rotation-config', error);
     }
@@ -2082,6 +2106,9 @@ class ComplianceManager {
       } else {
         console.log('ℹ️  Custom centralized logging - manual configuration required');
       }
+      
+      // Return to logging configuration menu
+      return this.loggingConfiguration();
     } catch (error) {
       await this.setup.handleError('centralized-logging-config', error);
     }

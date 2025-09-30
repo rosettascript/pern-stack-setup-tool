@@ -44,6 +44,7 @@ class PluginManager {
           '4. Remove plugin',
           '5. Browse plugin marketplace',
           '6. Create custom plugin',
+          new inquirer.Separator('──────────────'),
           '7. Go back'
         ]
       });
@@ -557,6 +558,7 @@ class PluginManager {
         choices: [
         '1. Install this plugin',
         '2. View more details',
+        new inquirer.Separator('──────────────'),
         '3. Go back to marketplace',
         '4. Go back to plugin management'
       ]

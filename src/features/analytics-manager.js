@@ -45,6 +45,7 @@ class AnalyticsManager {
           '4. Optimization recommendations',
           '5. Export analytics data',
           '6. Change Project',
+          new inquirer.Separator('──────────────'),
           '7. Go back'
         ]
       });
@@ -149,7 +150,9 @@ class AnalyticsManager {
             value: index
           })),
           'Create new project',
-          'Enter custom path'
+          'Enter custom path',
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
 
@@ -174,6 +177,10 @@ class AnalyticsManager {
         this.config.set('project.path', customPath);
         this.config.set('project.type', this.detectProjectType(customPath));
         return;
+      }
+
+      if (selectedProject === 'Go back') {
+        return this.setup.showAdvancedFeaturesInterface();
       }
 
       const selectedProjectData = existingProjects[selectedProject];
@@ -1057,6 +1064,10 @@ class SimpleMLModel {
    * Predict using model
    */
   predict(features, model) {
+    if (!model || !model.bias || !model.weights) {
+      return 0; // Return default value if model is not properly initialized
+    }
+
     let sum = model.bias;
     for (let i = 0; i < features.length && i < model.weights.length; i++) {
       sum += features[i] * model.weights[i];
@@ -1068,6 +1079,11 @@ class SimpleMLModel {
    * Predict performance
    */
   async predictPerformance() {
+    // Ensure model is initialized
+    if (!this.model.has('setup_time_prediction')) {
+      await this.initialize();
+    }
+
     const features = [1, 0, 0, 1]; // Example: Linux, has component
     const model = this.model.get('setup_time_prediction');
 

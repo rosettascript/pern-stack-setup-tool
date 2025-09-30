@@ -39,6 +39,13 @@ class PerformanceMonitor {
   }
 
   /**
+   * Start performance monitoring (alias for start method)
+   */
+  startMonitoring(interval = 5000) {
+    return this.start(interval);
+  }
+
+  /**
    * Stop performance monitoring
    */
   stop() {

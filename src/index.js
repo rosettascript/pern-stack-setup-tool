@@ -42,6 +42,7 @@ const TemplateEngine = require('./features/template-engine');
 const CacheManager = require('./features/cache-manager');
 const PluginManager = require('./features/plugin-manager');
 const AnalyticsManager = require('./features/analytics-manager');
+const ProjectDiscovery = require('./utils/project-discovery');
 
 /**
  * Main Setup Class
@@ -75,6 +76,9 @@ class PERNSetupTool {
       plugins: new PluginManager(this),
       analytics: new AnalyticsManager(this)
     };
+
+    // Project discovery utility
+    this.projectDiscovery = new ProjectDiscovery();
 
     // Setup state
     this.state = {
@@ -179,6 +183,7 @@ class PERNSetupTool {
             '8. Tool Installation',
             '9. Configuration',
             '10. Advanced Features',
+            new inquirer.Separator('──────────────'),
             '11. End'
           ]
         }
@@ -524,11 +529,86 @@ class PERNSetupTool {
   }
 
   /**
+   * Get existing projects using project discovery
+   */
+  async getExistingProjects() {
+    try {
+      const projects = await this.projectDiscovery.discoverProjects();
+      
+      // Filter out the current directory entry and format for display
+      return projects
+        .filter(project => project.type !== 'current')
+        .map(project => ({
+          name: project.name,
+          path: project.path,
+          type: this.detectProjectType(project.path)
+        }));
+    } catch (error) {
+      this.logger.error('Failed to discover projects:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get the correct project path for saving configuration files
+   */
+  getProjectPath() {
+    const projectPath = this.config.get('project.path');
+    if (projectPath) {
+      return projectPath;
+    }
+    
+    // Fallback to current working directory if no project is selected
+    console.log(chalk.yellow('⚠️  No project selected, using current directory'));
+    return process.cwd();
+  }
+
+  /**
+   * Detect project type based on directory structure
+   */
+  detectProjectType(projectPath) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      if (fs.existsSync(path.join(projectPath, 'package.json'))) {
+        const packageJson = require(path.join(projectPath, 'package.json'));
+        if (packageJson.dependencies && packageJson.dependencies.react) return 'React';
+        if (packageJson.dependencies && packageJson.dependencies.vue) return 'Vue';
+        if (packageJson.dependencies && packageJson.dependencies.express) return 'Node.js';
+        return 'Node.js';
+      }
+      
+      if (fs.existsSync(path.join(projectPath, 'server')) && fs.existsSync(path.join(projectPath, 'client'))) {
+        return 'fullstack';
+      }
+      
+      if (fs.existsSync(path.join(projectPath, 'server'))) {
+        return 'backend';
+      }
+      
+      if (fs.existsSync(path.join(projectPath, 'client'))) {
+        return 'frontend';
+      }
+      
+      if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) return 'Python';
+      if (fs.existsSync(path.join(projectPath, 'pom.xml'))) return 'Java';
+      if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) return 'Rust';
+      if (fs.existsSync(path.join(projectPath, 'go.mod'))) return 'Go';
+      if (fs.existsSync(path.join(projectPath, 'Dockerfile'))) return 'Docker';
+      
+      return 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
+  /**
    * Select project for microservices configuration
    */
   async selectProjectForMicroservices() {
     try {
-      const existingProjects = this.getExistingProjects();
+      const existingProjects = await this.getExistingProjects();
       
       if (existingProjects.length === 0) {
         console.log(chalk.yellow('⚠️  No existing projects found. Creating new project...'));
@@ -546,13 +626,19 @@ class PERNSetupTool {
             name: `${project.name} (${project.type}) - ${project.path}`,
             value: index
           })),
-          'Create new project'
+          'Create new project',
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
 
       if (projectChoice === 'Create new project') {
         await this.components.project.createProjectInterface();
         return;
+      }
+
+      if (projectChoice === 'Go back') {
+        return this.showAdvancedFeaturesInterface();
       }
 
       const selectedProject = existingProjects[projectChoice];
@@ -638,9 +724,15 @@ class PERNSetupTool {
         '1. API Gateway + Services',
         '2. Event-driven microservices',
         '3. CQRS pattern',
-        '4. Custom architecture'
+        '4. Custom architecture',
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
+
+    if (architectureType === 'Go back') {
+      return this.showMicroservicesInterface();
+    }
 
     const selected = parseInt(architectureType.split('.')[0]);
 
@@ -781,9 +873,15 @@ class PERNSetupTool {
         '2. Cloud (AWS EKS)',
         '3. Cloud (Google GKE)',
         '4. Cloud (Azure AKS)',
-        '5. On-premises'
+        '5. On-premises',
+        new inquirer.Separator('──────────────'),
+        'Go back'
       ]
     });
+
+    if (clusterType === 'Go back') {
+      return this.showMicroservicesInterface();
+    }
 
     const selected = parseInt(clusterType.split('.')[0]);
 
@@ -843,7 +941,9 @@ class PERNSetupTool {
       }
     };
 
-    const configPath = path.join(process.cwd(), 'service-mesh-config.json');
+    const projectPath = this.getProjectPath();
+    const configPath = path.join(projectPath, 'service-mesh-config.json');
+    await fs.ensureDir(projectPath);
     await fs.writeFile(configPath, JSON.stringify(meshConfig, null, 2));
 
     console.log(`📄 Service mesh config generated: ${configPath}`);
@@ -863,7 +963,12 @@ class PERNSetupTool {
       }))
     };
 
-    const configPath = path.join(process.cwd(), 'api-gateway-config.json');
+    // Use the selected project path instead of current working directory
+    const projectPath = this.getProjectPath();
+    const configPath = path.join(projectPath, 'api-gateway-config.json');
+    
+    // Ensure the project directory exists
+    await fs.ensureDir(projectPath);
     await fs.writeFile(configPath, JSON.stringify(gatewayConfig, null, 2));
 
     console.log(`📄 API Gateway config generated: ${configPath}`);
@@ -882,7 +987,9 @@ class PERNSetupTool {
       }
     };
 
-    const configPath = path.join(process.cwd(), 'event-driven-config.json');
+    const projectPath = this.getProjectPath();
+    const configPath = path.join(projectPath, 'event-driven-config.json');
+    await fs.ensureDir(projectPath);
     await fs.writeFile(configPath, JSON.stringify(eventConfig, null, 2));
 
     console.log(`📄 Event-driven config generated: ${configPath}`);
@@ -902,7 +1009,9 @@ class PERNSetupTool {
       }
     };
 
-    const configPath = path.join(process.cwd(), 'cqrs-config.json');
+    const projectPath = this.getProjectPath();
+    const configPath = path.join(projectPath, 'cqrs-config.json');
+    await fs.ensureDir(projectPath);
     await fs.writeFile(configPath, JSON.stringify(cqrsConfig, null, 2));
 
     console.log(`📄 CQRS config generated: ${configPath}`);
@@ -929,7 +1038,9 @@ class PERNSetupTool {
       }))
     };
 
-    const manifestsPath = path.join(process.cwd(), 'k8s-manifests.json');
+    const projectPath = this.getProjectPath();
+    const manifestsPath = path.join(projectPath, 'k8s-manifests.json');
+    await fs.ensureDir(projectPath);
     await fs.writeFile(manifestsPath, JSON.stringify(manifests, null, 2));
 
     console.log(`📄 Kubernetes manifests generated: ${manifestsPath}`);
@@ -989,7 +1100,7 @@ class PERNSetupTool {
    */
   async selectProjectForScalability() {
     try {
-      const existingProjects = this.getExistingProjects();
+      const existingProjects = await this.getExistingProjects();
       
       if (existingProjects.length === 0) {
         console.log(chalk.yellow('⚠️  No existing projects found. Creating new project...'));
@@ -1007,13 +1118,19 @@ class PERNSetupTool {
             name: `${project.name} (${project.type}) - ${project.path}`,
             value: index
           })),
-          'Create new project'
+          'Create new project',
+          new inquirer.Separator('──────────────'),
+          'Go back'
         ]
       });
 
       if (projectChoice === 'Create new project') {
         await this.components.project.createProjectInterface();
         return;
+      }
+
+      if (projectChoice === 'Go back') {
+        return this.showAdvancedFeaturesInterface();
       }
 
       const selectedProject = existingProjects[projectChoice];
@@ -4971,7 +5088,8 @@ Delete a user account.
         '1. Retry the operation',
         '2. Skip and continue',
         '3. View troubleshooting guide',
-        '4. Exit setup'
+        '4. Go back',
+        '5. Exit setup'
       ]
     });
 
@@ -4986,6 +5104,9 @@ Delete a user account.
         await this.showTroubleshootingGuide();
         throw error;
       case 4:
+        // Go back to previous interface
+        return this.showAdvancedFeaturesInterface();
+      case 5:
         await this.exit();
         break;
     }

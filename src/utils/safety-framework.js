@@ -431,6 +431,14 @@ class SafetyFramework {
         projectPath: Joi.string().min(1).max(500).required(),
         packageManager: Joi.string().valid('npm', 'yarn', 'pnpm').default('npm'),
         dependencies: Joi.array().items(Joi.string()).default([])
+      }),
+
+      // Tool installation operations
+      'tool-install': Joi.object({
+        toolName: Joi.string().min(1).max(50).required(),
+        platform: Joi.string().valid('linux', 'darwin', 'win32').required(),
+        commands: Joi.array().items(Joi.string()).default([]),
+        checkCommand: Joi.string().optional()
       })
     };
   }
@@ -675,7 +683,13 @@ class SafetyFramework {
    */
   async validateOperation(operation, parameters) {
     try {
-      const rules = this.validationRules[operation];
+      // Handle dynamic tool installation operations
+      let validationKey = operation;
+      if (operation.startsWith('tool-install-')) {
+        validationKey = 'tool-install';
+      }
+      
+      const rules = this.validationRules[validationKey];
       if (!rules) {
         throw new Error(`Unknown operation: ${operation}`);
       }
